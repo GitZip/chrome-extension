@@ -1,0 +1,129 @@
+/* It would work on github.com */
+
+/*body{
+	background: black !important;
+}*/
+
+/*override styles*/
+.repository-content .js-navigation-container tr.js-navigation-item td.icon{
+	position: relative;
+}
+
+*[class*="gitzip-"]{
+	transition:all 0.5s ease;
+	-webkit-transition:all 0.5s ease; /* Safari and Chrome */
+}
+
+.gitzip-show{
+	visibility: visible !important;
+	opacity: 1 !important;
+}
+
+.gitzip-header{
+	color: #333;
+    background-color: #f5f5f5;
+	padding: 10px 15px;
+    border-bottom: 1px solid #ddd;
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
+}
+
+.gitzip-body{
+	margin: 15px;
+	padding: 0px;
+	height: 246px;
+	overflow: auto;
+}
+
+.gitzip-downloading{
+	width: 480px !important;
+	height: 320px !important;
+	background-color: transparent !important;
+	border-radius: 0px !important;
+}
+
+.gitzip-check-mark{
+	position: absolute; 
+	left: -35%;
+    top: 0px;
+	font-size: 18px;
+	margin:0 !important;
+	visibility: hidden;
+	opacity: 0;
+    color: black;
+}
+
+.gitzip-collect-wrap{
+	position: fixed;
+	right: 28px;
+	bottom: 28px;
+	visibility: hidden;
+  	opacity: 0;
+  	z-index: 1000;
+  	width: 56px;
+  	height: 56px;
+}
+
+.gitzip-collect-wrap:hover{
+	width: 270px;
+	height: 65px;
+	border-radius: 8px;
+	background-color: black;
+}
+
+.gitzip-collect-down{
+	font-size: 56px;
+	line-height: 56px;
+	margin: 0;
+	-webkit-transform: rotate(90deg); /* Chrome, Safari, Opera */
+	transform: rotate(90deg);
+	cursor: pointer;
+	position: absolute;
+	right: 0px;
+	bottom: 4px;
+}
+
+.gitzip-collect-wrap:hover .gitzip-collect-down{
+	color: #fff;
+}
+
+.gitzip-collect-dash{
+    box-shadow: 1px 1px 10px 0px #d0d0d0;
+    background-color: #fff;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    display: none;
+    visibility: hidden;
+  	opacity: 0;
+}
+
+.gitzip-downloading .gitzip-collect-dash{
+	height: 100%;
+	display: block;
+	visibility: visible;
+  	opacity: 1;
+}
+
+.gitzip-collect-tip{
+	visibility: hidden;
+  	opacity: 0;
+  	cursor: pointer;
+  	position: absolute;
+    left: -213px;
+    bottom: 0;
+    margin: 0;
+    line-height: 65px;
+    font-size: 18px;
+    width: 230px;
+    padding-left:10px;
+}
+
+.gitzip-collect-wrap:hover .gitzip-collect-tip{
+	visibility: visible; opacity: 1;
+	color: #fff;
+	left: 0px;
+}
+
+.gitzip-downloading .gitzip-collect-tip, .gitzip-downloading .gitzip-collect-down{
+	display: none !important;
+}
