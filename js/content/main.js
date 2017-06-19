@@ -65,11 +65,11 @@ function callAjax(url){
 	    // compatible with IE7+, Firefox, Chrome, Opera, Safari
 	    xmlhttp = new XMLHttpRequest();
 	    xmlhttp.onreadystatechange = function(){
-	        if (xmlhttp.readyState == 4 && xmlhttp.status == 200){
+	        if (xmlhttp.readyState == 4){
 	        	if(xmlhttp.status == 200){
 	        		resolve(xmlhttp.response);
-	        	}else if(xmlhttp.status > 400){
-	        		reject(xmlhttp);
+	        	}else if(xmlhttp.status >= 400){
+	        		reject(xmlhttp.response);
 	        	}
 	        }
 	    }
@@ -185,10 +185,11 @@ var Pool = {
 		new Promise(function(res, rej){
 			chrome.runtime.sendMessage({action: "getKey"}, function(response){ res(response); });	
 		}).then(function(key){
-			currentKey = key;
+			currentKey = key || "";
 			return new Promise(function(rs, rj){
 				var promises = treeAjaxItems.map(function(item){
-					return callAjax(item.url + "?recursive=1&access_token=" + currentKey).then(function(treeRes){
+					var fetchedUrl = item.url + "?recursive=1" + (currentKey? ("&access_token=" + currentKey) : "");
+					return callAjax(fetchedUrl).then(function(treeRes){
 	     				treeRes.tree.forEach(function(blobItem){
 	     					if(blobItem.type == "blob"){
 	     						var path = item.title + "/" + blobItem.path;
@@ -198,34 +199,34 @@ var Pool = {
 	     				});
 					});
 				});
-				Promise.all(promises).then(function(){ rs(); });
+				Promise.all(promises).then(function(){ rs(); }).catch(function(err){ rj(err); });
 			});
 		}).then(function(){
 			self.log("Collect blob contents...");
 		 	return new Promise(function(rs, rj){
 		 		var promises = blobAjaxCollection.map(function(item){
-		 			return callAjax(item.blobUrl + "?access_token=" + currentKey).then(function(blobRes){
+		 			var fetchedUrl = item.blobUrl + (currentKey? ("?access_token=" + currentKey) : "");
+		 			return callAjax(fetchedUrl).then(function(blobRes){
 		 				fileContents.push({ path: item.path, content: blobRes.content });
 		 				self.log(item.path + " content has collected.");
 		 			});
 		 		});
-		 		Promise.all(promises).then(function(){ rs(); });
+		 		Promise.all(promises).then(function(){ rs(); }).catch(function(err){ rj(err); });
 		 	});
 		}).then(function(){
 			self.log("Zip contents and trigger download...");
 			// console.log(fileContents);
 			return zipContents([resolvedUrl.project].concat(resolvedUrl.path.split('/')).join('-'), fileContents);
-		}).catch(function(err){
-			console.log(err);
-			self.log(err);
-			return;
 		}).then(function(){
 			self.reset();
+		}).catch(function(err){
+			console.log(err);
+			var message = err.message;
+			self.log(message);
+			if (message.indexOf("rate limit exceeded") >= 0){
+				self.log("<strong style='color:red;'>Please press GitZip extension icon to get or input access token</strong>");
+			}
 		});
-		
-		// callAjax();
-
-		// the end
 		
 	},
 	log: function(message){

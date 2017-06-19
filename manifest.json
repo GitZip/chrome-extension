@@ -33,8 +33,12 @@
             "css": ["css/main.css"]
         },
         {
-            "matches": ["*://kinolien.github.io/gitzip/*"],
+            "matches": ["*://kinolien.github.io/gitzip/*", "*://gitzip.org/*"],
             "js": ["js/content/show.js"]
+        },
+        {
+            "matches": ["*://gitzip.org/gettoken/success", "*://localhost/gettoken/success", "*://localhost/debug/goback"],
+            "js": ["js/content/autosave.js"]
         }
     ]
 }

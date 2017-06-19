@@ -4,11 +4,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 	var form = document.getElementById('tokenForm');
 	var input = document.getElementById('tokenInput');
+	var tokenlink = form.querySelector('.gettoken-link');
 	var tip = form.querySelector('.tip-left');
 	form.addEventListener('submit', function(){
-		chrome.runtime.sendMessage({action: "setKey", value: input.value}, function(response){
-			alert(response);
-		});
+		chrome.runtime.sendMessage({action: "setKey", value: input.value}, function(response){});
 		window.close();
 	});
 
@@ -20,8 +19,16 @@ document.addEventListener('DOMContentLoaded', function() {
 		input.value = response;
 	});
 
-	// chrome.storage.sync.get("gitzip-github-apikey", function(res){
-	// 	input.value = res["gitzip-github-apikey"] || "";
-	// });
+	chrome.tabs.query({currentWindow: true, active: true}, function(tabs){
+		var tab = tabs[0];
+		if(tab && tab.url){
+			tokenlink.href += encodeURIComponent(tabs[0].url);
+			tokenlink.addEventListener('click', function(e){
+				e.preventDefault();
+				chrome.tabs.update(tab.id, {url: tokenlink.href});
+				window.close();
+			});
+		}
+	});
 
 }, false);
