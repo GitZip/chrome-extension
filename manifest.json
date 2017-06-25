@@ -2,7 +2,7 @@
     "manifest_version": 2,
 
     "name": "GitZip Plugin",
-    "description": "This extension can make sub-folder/sub-directory of github repository as zip and download it",
+    "description": "It can make sub-folder/sub-directory of github repository as zip and download it",
     "version": "0.1.0",
 
     "icons": {
@@ -29,15 +29,19 @@
     "content_scripts": [
         {
             "matches": ["*://github.com/*"],
-            "js": ["js/content/jszip.min.js","js/content/FileSaver.min.js","js/content/main.js","js/content/show.js"],
+            "js": ["js/content/jszip.min.js","js/content/FileSaver.min.js","js/content/main.js"],
             "css": ["css/main.css"]
         },
         {
-            "matches": ["*://kinolien.github.io/gitzip/*", "*://gitzip.org/*"],
+            "matches": ["*://github.com/*", "*://gitzip.org/*"],
             "js": ["js/content/show.js"]
         },
         {
-            "matches": ["*://gitzip.org/gettoken/success", "*://localhost/gettoken/success", "*://localhost/debug/goback"],
+            "matches": ["*://kinolien.github.io/gitzip/*"],
+            "js": ["js/content/keysync.js"]
+        },
+        {
+            "matches": ["*://gitzip.org/gettoken/success"],
             "js": ["js/content/autosave.js"]
         }
     ]

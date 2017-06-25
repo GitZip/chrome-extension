@@ -5,12 +5,12 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 			chrome.pageAction.show(sender.tab.id);
 			break;
 		case "getKey":
-			chrome.storage.sync.get("gitzip-github-apikey", function(res){
-				sendResponse(res["gitzip-github-apikey"] || "");
+			chrome.storage.sync.get("gitzip-github-token", function(res){
+				sendResponse(res["gitzip-github-token"] || "");
 			});
 			return true;
 		case "setKey":
-			chrome.storage.sync.set( {"gitzip-github-apikey": request.value}, function(res){
+			chrome.storage.sync.set( {"gitzip-github-token": request.value}, function(res){
 				sendResponse(res);
 			});
 			return true;
