@@ -1,12 +1,13 @@
 {
     "manifest_version": 2,
 
-    "name": "GitZip Plugin",
-    "description": "It can make sub-folder/sub-directory of github repository as zip and download it",
-    "version": "0.1.0",
+    "name": "GitZip for github",
+    "description": "It can make the sub-directories and files of github repository as zip and download it",
+    "version": "0.1.1",
 
     "icons": {
         "16": "images/icon-16px.png",
+        "32": "images/icon-32px.png",
         "48": "images/icon-48px.png",
         "128": "images/icon-128px.png"
     },
@@ -22,7 +23,7 @@
 
     "permissions": [
         "storage",
-        "tabs",
+        "activeTab",
         "*://github.com/*"
     ],
 
