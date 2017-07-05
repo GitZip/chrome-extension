@@ -281,28 +281,51 @@ function onItemDblClick(e){
 }
 
 function initElements(){
-	var items = document.querySelectorAll(itemCollectSelector);
+	
+	function appendToIcons(){
+		var items = document.querySelectorAll(itemCollectSelector);
+		var itemLen = items.length;
+		if(itemLen){
+			for(var i = 0; i < itemLen; i++){
+				var item = items[i];
+				
+				var icon = item.querySelector("td.icon");
+				var link = item.querySelector("td.content a");
+				var blob = icon.querySelector(".octicon-file-text");
+				var tree = icon.querySelector(".octicon-file-directory");
+				
+				if(link && (tree || blob)){
+					createMark(icon, item.offsetHeight, link.textContent, tree? "tree" : "blob", link.id.split('-')[1]);
+					item.addEventListener("dblclick", onItemDblClick);
+				}
+			}
+			Pool.init();
+		}
+	}
 
+	var lazyCaseObserver = null;
 	var fileWrap = document.querySelector(".repository-content .file-wrap");
 
-	var itemLen = items.length;
-	
-	if(itemLen && fileWrap){
-		for(var i = 0; i < itemLen; i++){
-			var item = items[i];
-			
-			var icon = item.querySelector("td.icon");
-			var link = item.querySelector("td.content a");
-			var blob = icon.querySelector(".octicon-file-text");
-			var tree = icon.querySelector(".octicon-file-directory");
-			
-			if(link && (tree || blob)){
-				createMark(icon, item.offsetHeight, link.textContent, tree? "tree" : "blob", link.id.split('-')[1]);
-				item.addEventListener("dblclick", onItemDblClick);
-			}
+	if(fileWrap && fileWrap.tagName.toLowerCase() == "include-fragment"){
+		// lazy case
+		var lazyTarget = document.querySelector(".repository-content");
+		if(lazyTarget){
+			lazyCaseObserver = new MutationObserver(function(mutations) {
+				mutations.forEach(function(mutation) {
+					var addNodes = mutation.addedNodes;
+					addNodes && addNodes.length && addNodes.forEach(function(el){
+						if(el.classList && el.classList.contains("file-wrap") && lazyCaseObserver){
+							// console.log("in mutation adds");
+							appendToIcons();
+							lazyCaseObserver.disconnect();
+							lazyCaseObserver = null;
+						}
+					});
+				});    
+			});
+			lazyCaseObserver.observe(lazyTarget, { childList: true } );
 		}
-		Pool.init();
-	}	
+	}else appendToIcons();
 }
 
 // pjax detection
@@ -334,3 +357,4 @@ document.addEventListener("readystatechange", function(){
 	// alert(currentKey);
 	// localStorage.setItem("gitziptest", "test");
 });
+
