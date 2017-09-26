@@ -1,13 +1,5 @@
 // It would work on github.com
 
-// alert("In github page");
-
-// if(saveAs){
-// 	alert("defined");
-// }else{
-// 	alert("undefined");	
-// }
-
 var repoExp = new RegExp("^https://github.com/([^/]+)/([^/]+)(/(tree|blob)/([^/]+)(/(.*))?)?");
 /**
  * Resolve the github repo url for recognize author, project name, branch name, and so on.
@@ -90,16 +82,12 @@ var Pool = {
 		// create dom
 		// Make the dom on right bottom
 		var self = this;
-		var wrap = document.body.querySelector(".gitzip-collect-wrap"),
-			dash = wrap? wrap.querySelector(".gitzip-collect-dash") : null,
-			down = wrap? wrap.querySelector(".gitzip-collect-down") : null,
-			tip = wrap? wrap.querySelector(".gitzip-collect-tip") : null;
 
-		if(!wrap || !down){
-			wrap = document.createElement('div');
-			dash = document.createElement('div');
-			down = document.createElement('p');	
-			tip = document.createElement('p');
+		if(!self._el){
+			var wrap = document.createElement('div'),
+				dash = document.createElement('div'),
+				down = document.createElement('p'),
+				tip = document.createElement('p');
 			
 			wrap.className = "gitzip-collect-wrap";
 			dash.className = "gitzip-collect-dash";
@@ -118,12 +106,12 @@ var Pool = {
 
 			self._el = wrap;
 			self._dashBody = dash.querySelector(".gitzip-body");
+
+			// hook events
+			down.addEventListener('click', function(){ self.download(); });
+			tip.addEventListener('click', function(){ self.download(); });
 		}
-
-		// hook events
-		down.addEventListener('click', function(){ self.download(); });
-		tip.addEventListener('click', function(){ self.download(); });
-
+		
 		self.reset();
 	},
 	show: function(){ this._el && this._el.classList.add("gitzip-show"); },
@@ -135,15 +123,6 @@ var Pool = {
 		self._dashBody.innerHTML = "";
 		self._locked = false;
 	},
-	// add: function(){
-	// 	if(this._locked) return;
-	// 	if(!this._created) this.init();
-	// 	// do add
-	// },
-	// remove: function(){
-	// 	if(this._locked) return;
-	// 	// do remove
-	// },
 	download: function(){
 		var self = this;
 		if(self._locked) return;
@@ -176,55 +155,47 @@ var Pool = {
 				blobAjaxCollection.push({ path: title, blobUrl: url });	
 				self.log(title + " url fetched.")
 			}
-			
-			// self.log(getGitUrl(type, sha));
 		}
-
 
 		// start progress
 		new Promise(function(res, rej){
 			chrome.runtime.sendMessage({action: "getKey"}, function(response){ res(response); });	
 		}).then(function(key){
 			currentKey = key || "";
-			return new Promise(function(rs, rj){
-				var promises = treeAjaxItems.map(function(item){
-					var fetchedUrl = item.url + "?recursive=1" + (currentKey? ("&access_token=" + currentKey) : "");
-					return callAjax(fetchedUrl).then(function(treeRes){
-	     				treeRes.tree.forEach(function(blobItem){
-	     					if(blobItem.type == "blob"){
-	     						var path = item.title + "/" + blobItem.path;
-	     						blobAjaxCollection.push({ path: path, blobUrl: blobItem.url });
-	     						self.log(path + " url fetched.");
-	     					}
-	     				});
-					});
+			var promises = treeAjaxItems.map(function(item){
+				var fetchedUrl = item.url + "?recursive=1" + (currentKey? ("&access_token=" + currentKey) : "");
+				return callAjax(fetchedUrl).then(function(treeRes){
+     				treeRes.tree.forEach(function(blobItem){
+     					if(blobItem.type == "blob"){
+     						var path = item.title + "/" + blobItem.path;
+     						blobAjaxCollection.push({ path: path, blobUrl: blobItem.url });
+     						self.log(path + " url fetched.");
+     					}
+     				});
 				});
-				Promise.all(promises).then(function(){ rs(); }).catch(function(err){ rj(err); });
 			});
+			return Promise.all(promises);
 		}).then(function(){
 			self.log("Collect blob contents...");
-		 	return new Promise(function(rs, rj){
-		 		var promises = blobAjaxCollection.map(function(item){
-		 			var fetchedUrl = item.blobUrl + (currentKey? ("?access_token=" + currentKey) : "");
-		 			return callAjax(fetchedUrl).then(function(blobRes){
-		 				fileContents.push({ path: item.path, content: blobRes.content });
-		 				self.log(item.path + " content has collected.");
-		 			});
-		 		});
-		 		Promise.all(promises).then(function(){ rs(); }).catch(function(err){ rj(err); });
-		 	});
+			var promises = blobAjaxCollection.map(function(item){
+	 			var fetchedUrl = item.blobUrl + (currentKey? ("?access_token=" + currentKey) : "");
+	 			return callAjax(fetchedUrl).then(function(blobRes){
+	 				fileContents.push({ path: item.path, content: blobRes.content });
+	 				self.log(item.path + " content has collected.");
+	 			});
+	 		});
+	 		return Promise.all(promises);
 		}).then(function(){
 			self.log("Zip contents and trigger download...");
-			// console.log(fileContents);
 			return zipContents([resolvedUrl.project].concat(resolvedUrl.path.split('/')).join('-'), fileContents);
 		}).then(function(){
 			self.reset();
 		}).catch(function(err){
 			console.log(err);
-			var message = err.message;
+			var message = err.message? err.message : err;
 			self.log(message);
 			if (message.indexOf("rate limit exceeded") >= 0){
-				self.log("<strong style='color:red;'>Please press GitZip extension icon to get or input access token</strong>");
+				self.log("<strong style='color:red;'>Please press GitZip extension icon to get token or input your token.</strong>");
 			}
 		});
 		
@@ -247,26 +218,10 @@ function createMark(parent, height, title, type, sha){
 		checkp.style.cssText = "line-height:" + height + "px;";
 		
 		parent.append(checkp);
+
+		return true;
 	}
-}
-
-function createCollection(){
-	var wrap = document.body.querySelector(".gitzip-collect-wrap"),
-		down = wrap? wrap.querySelector(".gitzip-collect-down") : null;
-
-	if(!wrap || !down){
-		wrap = document.createElement('div');
-		down = document.createElement('p');	
-		
-		wrap.className = "gitzip-collect-wrap";
-		down.className = "gitzip-collect-down";
-
-		wrap.append(down);
-		document.body.append(wrap);
-	}
-
-	// hook events
-
+	return false;
 }
 
 function checkHaveAnyCheck(){
@@ -295,13 +250,19 @@ function initElements(){
 				var tree = icon.querySelector(".octicon-file-directory");
 				
 				if(link && (tree || blob)){
-					createMark(icon, item.offsetHeight, link.textContent, tree? "tree" : "blob", link.id.split('-')[1]);
-					item.addEventListener("dblclick", onItemDblClick);
+					createMark(
+						icon, 
+						item.offsetHeight, 
+						link.textContent, 
+						tree? "tree" : "blob", 
+						link.id.split('-')[1]
+					) && item.addEventListener("dblclick", onItemDblClick);
 				}
 			}
-			Pool.init();
 		}
 	}
+
+	Pool.init();
 
 	var lazyCaseObserver = null;
 	var fileWrap = document.querySelector(".repository-content .file-wrap");
@@ -348,13 +309,7 @@ function hookMutationObserver(){
 	// observer.disconnect();
 }
 
-document.addEventListener("readystatechange", function(){
-	if(document.readyState === "complete") {
-		initElements();
-		hookMutationObserver();
-	}
-
-	// alert(currentKey);
-	// localStorage.setItem("gitziptest", "test");
-});
-
+// Property run_at is "document_end" as default in Content Script
+// refers: https://developer.chrome.com/extensions/content_scripts
+initElements();
+hookMutationObserver();
