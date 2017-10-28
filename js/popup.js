@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
 	chrome.tabs.query({currentWindow: true, active: true}, function(tabs){
 		var tab = tabs[0];
 		if(tab && tab.url){
-			tokenlink.href += encodeURIComponent(tabs[0].url);
+			tokenlink.href += encodeURIComponent(tab.url);
 			tokenlink.addEventListener('click', function(e){
 				e.preventDefault();
 				chrome.tabs.update(tab.id, {url: tokenlink.href});

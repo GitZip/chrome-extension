@@ -94,15 +94,31 @@ var Pool = {
 			down.className = "gitzip-collect-down";
 			tip.className = "gitzip-collect-tip";
 
-			tip.innerHTML = "Download checked items";
-			down.innerHTML = "&#x27A0;";
+			tip.appendChild(document.createTextNode("Download checked items"));
+			
+			down.appendChild(document.createTextNode("\u27A0"));
 
-			dash.innerHTML = '<div class="gitzip-header">Progress Dashboard</div><div class="gitzip-body"></div>';
+			dash.appendChild(
+				(function(){
+					var c = document.createElement("div");
+					c.className = "gitzip-header";
+					c.appendChild(document.createTextNode("Progress Dashboard"));
+					return c;
+				})()
+			);
 
-			wrap.append(dash);
-			wrap.append(down);
-			wrap.append(tip);
-			document.body.append(wrap);
+			dash.appendChild(
+				(function(){
+					var c = document.createElement("div");
+					c.className = "gitzip-body";
+					return c;
+				})()
+			);
+
+			wrap.appendChild(dash);
+			wrap.appendChild(down);
+			wrap.appendChild(tip);
+			document.body.appendChild(wrap);
 
 			self._el = wrap;
 			self._dashBody = dash.querySelector(".gitzip-body");
@@ -120,7 +136,9 @@ var Pool = {
 		var self = this;
 		!!checkHaveAnyCheck()? self.show() : self.hide();
 		self._el.classList.remove("gitzip-downloading");
-		self._dashBody.innerHTML = "";
+		while (self._dashBody.firstChild) {
+			self._dashBody.removeChild(self._dashBody.firstChild);
+		}
 		self._locked = false;
 	},
 	download: function(){
@@ -213,7 +231,8 @@ var Pool = {
 		
 	},
 	log: function(message){
-		this._dashBody.innerHTML += message + "<br/>";
+		this._dashBody.appendChild(document.createTextNode(message));
+		this._dashBody.appendChild(document.createElement("br"));
 		this._dashBody.scrollTop = this._dashBody.scrollHeight - this._dashBody.clientHeight;
 	}
 };
@@ -226,10 +245,10 @@ function createMark(parent, height, title, type, sha){
 		checkp.setAttribute("gitzip-type", type);
 		checkp.setAttribute("gitzip-sha", sha);
 		checkp.className = "gitzip-check-mark";
-		checkp.innerHTML = "&#x2713;"
+		checkp.appendChild(document.createTextNode("\u2713"));
 		checkp.style.cssText = "line-height:" + height + "px;";
 		
-		parent.append(checkp);
+		parent.appendChild(checkp);
 
 		return true;
 	}

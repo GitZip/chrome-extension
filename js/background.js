@@ -35,7 +35,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 				eventLabel: request.githubUrl
 			};
 			ga('send', eventGaObj);
-			console.log(eventGaObj);
+			// console.log(eventGaObj);
 			break;
 	}
 });
