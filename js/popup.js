@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 	var form = document.getElementById('tokenForm');
 	var input = document.getElementById('tokenInput');
-	var tokenlink = form.querySelector('.gettoken-link');
+	var tokenlinks = form.querySelectorAll('.gettoken-link');
 	var tip = form.querySelector('.tip-left');
 	form.addEventListener('submit', function(){
 		chrome.runtime.sendMessage({action: "setKey", value: input.value}, function(response){});
@@ -22,11 +22,13 @@ document.addEventListener('DOMContentLoaded', function() {
 	chrome.tabs.query({currentWindow: true, active: true}, function(tabs){
 		var tab = tabs[0];
 		if(tab && tab.url){
-			tokenlink.href += encodeURIComponent(tab.url);
-			tokenlink.addEventListener('click', function(e){
+			function onTokenLinkClick(e){
 				e.preventDefault();
-				chrome.tabs.update(tab.id, {url: tokenlink.href});
+				chrome.tabs.update(tab.id, {url: this.href + encodeURIComponent(tab.url)});
 				window.close();
+			}
+			tokenlinks.forEach(function(link){
+				link.addEventListener('click', onTokenLinkClick);
 			});
 		}
 	});
