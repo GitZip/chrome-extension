@@ -249,10 +249,7 @@ function createMark(parent, height, title, type, sha){
 		checkp.style.cssText = "line-height:" + height + "px;";
 		
 		parent.appendChild(checkp);
-
-		return true;
 	}
-	return false;
 }
 
 function checkHaveAnyCheck(){
@@ -266,20 +263,19 @@ function onItemDblClick(e){
 	!!checkHaveAnyCheck()? Pool.show() : Pool.hide();
 }
 
-function initElements(){
-	
+function hookItemEvents(){
+
 	function appendToIcons(){
 		var items = document.querySelectorAll(itemCollectSelector);
 		var itemLen = items.length;
 		if(itemLen){
 			for(var i = 0; i < itemLen; i++){
-				var item = items[i];
-				
-				var icon = item.querySelector("td.icon");
-				var link = item.querySelector("td.content a");
-				var blob = icon.querySelector(".octicon-file-text");
-				var tree = icon.querySelector(".octicon-file-directory");
-				
+				var item = items[i],
+					icon = item.querySelector("td.icon"),
+					link = item.querySelector("td.content a"),
+					blob = icon.querySelector(".octicon-file-text"),
+					tree = icon.querySelector(".octicon-file-directory");	
+
 				if(link && (tree || blob)){
 					createMark(
 						icon, 
@@ -287,13 +283,12 @@ function initElements(){
 						link.textContent, 
 						tree? "tree" : "blob", 
 						link.id.split('-')[1]
-					) && item.addEventListener("dblclick", onItemDblClick);
+					);
+					item.addEventListener("dblclick", onItemDblClick);
 				}
 			}
 		}
 	}
-
-	Pool.init();
 
 	var lazyCaseObserver = null;
 	var fileWrap = document.querySelector(".repository-content .file-wrap");
@@ -317,7 +312,11 @@ function initElements(){
 			});
 			lazyCaseObserver.observe(lazyTarget, { childList: true } );
 		}
-	}else appendToIcons();
+	}
+
+	appendToIcons();
+
+	Pool.init();
 }
 
 // pjax detection
@@ -329,7 +328,7 @@ function hookMutationObserver(){
 	var observer = new MutationObserver(function(mutations) {
 		mutations.forEach(function(mutation) {
 			var addNodes = mutation.addedNodes;
-			if(addNodes && addNodes.length) initElements();
+			if(addNodes && addNodes.length) hookItemEvents();
 		});    
 	});
 	 
@@ -343,4 +342,4 @@ function hookMutationObserver(){
 // Property run_at is "document_end" as default in Content Script
 // refers: https://developer.chrome.com/extensions/content_scripts
 hookMutationObserver();
-initElements();
+hookItemEvents();
