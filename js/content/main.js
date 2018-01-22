@@ -273,7 +273,7 @@ function hookItemEvents(){
 				var item = items[i],
 					icon = item.querySelector("td.icon"),
 					link = item.querySelector("td.content a"),
-					blob = icon.querySelector(".octicon-file-text"),
+					blob = icon.querySelector(".octicon-file-text, .octicon-file"),
 					tree = icon.querySelector(".octicon-file-directory");	
 
 				if(link && (tree || blob)){
