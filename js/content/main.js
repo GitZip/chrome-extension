@@ -263,6 +263,16 @@ function onItemDblClick(e){
 	!!checkHaveAnyCheck()? Pool.show() : Pool.hide();
 }
 
+var currentSelection = {};
+function generateEnterItemHandler(title, type, sha){
+	return function(){
+		chrome.runtime.sendMessage({action: "updateContextSingle", urlName: title, urlType: type}, function(response) {});
+		currentSelection.title = title;
+		currentSelection.type = type;
+		currentSelection.sha = sha;
+	}
+}
+
 function hookItemEvents(){
 
 	function appendToIcons(){
@@ -277,14 +287,13 @@ function hookItemEvents(){
 					tree = icon.querySelector(".octicon-file-directory");	
 
 				if(link && (tree || blob)){
-					createMark(
-						icon, 
-						item.offsetHeight, 
-						link.textContent, 
-						tree? "tree" : "blob", 
-						link.id.split('-')[1]
-					);
+					var title = link.textContent,
+						type = tree? "tree" : "blob",
+						sha = link.id.split('-')[1];
+
+					createMark(icon, item.offsetHeight, title, type, sha);
 					item.addEventListener("dblclick", onItemDblClick);
+					item.addEventListener("mouseenter", generateEnterItemHandler(title, type, sha) );
 				}
 			}
 		}
@@ -314,6 +323,20 @@ function hookItemEvents(){
 		}
 	}
 
+	if ( fileWrap ) {
+
+		function onFileWrapLeave(){
+			var pathText = fileWrap.parentElement.querySelector(".file-navigation .breadcrumb").innerText,
+				urlType = pathText ? "tree" : "";
+			chrome.runtime.sendMessage({action: "updateContextSingle", urlName: pathText, urlType: urlType}, function(response) {});
+		}
+
+		fileWrap.addEventListener("mouseleave", onFileWrapLeave);
+
+		// force to refresh during pjax update
+		onFileWrapLeave();
+	}
+
 	appendToIcons();
 
 	Pool.init();
@@ -339,7 +362,25 @@ function hookMutationObserver(){
 	// observer.disconnect();
 }
 
+function hookContextMenus(){
+	
+	chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+		switch (request.action){
+			case "current-tab-active":
+				// from the background event
+				// means tab active changed.
+				// console.log(currentSelection); OK
+				chrome.runtime.sendMessage({action: "createContextSingle"}, function(response) {});
+				break;
+			case "gitzip-single-clicked":
+				alert("gitzip-single-clicked");
+				break;
+		}
+	});
+}
+
 // Property run_at is "document_end" as default in Content Script
 // refers: https://developer.chrome.com/extensions/content_scripts
 hookMutationObserver();
 hookItemEvents();
+hookContextMenus();

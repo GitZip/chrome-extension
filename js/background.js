@@ -35,7 +35,55 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 				eventLabel: request.githubUrl
 			};
 			ga('send', eventGaObj);
-			// console.log(eventGaObj);
+			break;
+		case "createContextSingle":
+			chrome.contextMenus.create({
+				id: "gitzip-single",
+				title: "Download Zip"
+			});
+			break;
+		case "updateContextSingle":
+			var updateObj = {};
+			if ( request.urlType == "blob" ) {
+				updateObj.title = "Download「" + request.urlName + "」";
+			} else if ( request.urlType == "tree" ) {
+				updateObj.title = "Download「" + request.urlName + "」as Zip";
+			} else {
+				updateObj.title = "Download Zip";
+			}
+			chrome.contextMenus.update("gitzip-single", updateObj);
+			break;
+		case "createContextMultiple":
+			chrome.contextMenus.create({
+				id: "gitzip-multiple",
+				title: "Download checked items"
+			});
+			break;
+		case "removeContextMultiple":
+			chrome.contextMenus.remove("gitzip-multiple");
+			break;
+		case "removeContext": 
+			chrome.contextMenus.removeAll();
 			break;
 	}
 });
+
+chrome.contextMenus.onClicked.addListener(function(info, tab){
+	if ( info.menuItemId.toString().indexOf("gitzip-") != -1 ) {
+		chrome.tabs.sendMessage(tab.id, {action: info.menuItemId + "-clicked"}, function(response) {});
+	}
+});
+
+chrome.tabs.onActivated.addListener(function(activeInfo) {
+	// handle other tabs active
+    chrome.contextMenus.removeAll();
+
+    // change back to current tab
+    chrome.tabs.sendMessage(activeInfo.tabId, {action: "current-tab-active"}, function(response) {});
+});
+
+chrome.tabs.onUpdated.addListener(function(tabId, changeInfo){
+	chrome.contextMenus.removeAll();
+	chrome.tabs.sendMessage(tabId, {action: "current-tab-active"}, function(response) {});
+});
+
