@@ -34,7 +34,7 @@ function getGitUrl(author, project, type, sha){
 	}else return false;	
 }
 
-var zipContents = function(filename, contents){
+function zipContents(filename, contents){
     var zip = new JSZip();
     contents.forEach(function(item){
         zip.file(item.path, item.content, {createFolders:true,base64:true});
