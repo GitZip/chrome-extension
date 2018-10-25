@@ -11,9 +11,15 @@ function resolveUrl(repoUrl){
     if(typeof repoUrl != 'string') return;
     var matches = repoUrl.match(repoExp);
     if(matches && matches.length > 0){
-        var root = (matches[5])?
+    	var rootUrl = (matches[5])?
             "https://github.com/" + matches[1] + "/" + matches[2] + "/tree/" + matches[5] :
-            repoUrl;
+            "https://github.com/" + matches[1] + "/" + matches[2];
+
+    	var strType = matches[4];
+    	if ( !strType && (repoUrl.length - rootUrl.length > 1) ) { // means no type and url different with root
+    		return false;
+    	}
+
         return {
             author: matches[1],
             project: matches[2],
@@ -21,9 +27,10 @@ function resolveUrl(repoUrl){
             type: matches[4],
             path: matches[7] || '',
             inputUrl: repoUrl,
-            rootUrl: root
+            rootUrl: rootUrl
         };
     }
+    return false;
 }
 
 // https://api.github.com/repos/peers/peerjs/git/trees/bfd406219ffd35f4ad870638f2180b27b4e9c374
@@ -273,6 +280,23 @@ function generateEnterItemHandler(title, type, sha){
 	}
 }
 
+function restoreContextStatus(){
+	var resolvedUrl = resolveUrl(window.location.href);
+	var repoContent = document.querySelector(".repository-content");
+	var pathText = repoContent.querySelector(".file-navigation .breadcrumb").innerText,
+		urlType = "";
+		
+	if ( pathText && typeof resolvedUrl.type == "string" && resolvedUrl.type.length ) {
+		urlType = resolvedUrl.type;
+	}
+	chrome.runtime.sendMessage({action: "updateContextSingle", urlName: pathText, urlType: urlType}, function(response) {});
+}
+
+// Check is in available view
+function isAvailableView(){
+	return resolveUrl(window.location.href) !== false;
+}
+
 function hookItemEvents(){
 
 	function appendToIcons(){
@@ -300,7 +324,8 @@ function hookItemEvents(){
 	}
 
 	var lazyCaseObserver = null;
-	var fileWrap = document.querySelector(".repository-content .file-wrap");
+	var repoContent = document.querySelector(".repository-content");
+	var fileWrap = repoContent ? repoContent.querySelector(".file-wrap") : null;
 
 	if(fileWrap && fileWrap.tagName.toLowerCase() == "include-fragment"){
 		// lazy case
@@ -323,18 +348,9 @@ function hookItemEvents(){
 		}
 	}
 
-	if ( fileWrap ) {
-
-		function onFileWrapLeave(){
-			var pathText = fileWrap.parentElement.querySelector(".file-navigation .breadcrumb").innerText,
-				urlType = pathText ? "tree" : "";
-			chrome.runtime.sendMessage({action: "updateContextSingle", urlName: pathText, urlType: urlType}, function(response) {});
-		}
-
-		fileWrap.addEventListener("mouseleave", onFileWrapLeave);
-
-		// force to refresh during pjax update
-		onFileWrapLeave();
+	if ( fileWrap && !fileWrap._hookLeave ) {
+		fileWrap.addEventListener("mouseleave", restoreContextStatus);
+		fileWrap._hookLeave = true;
 	}
 
 	appendToIcons();
@@ -370,7 +386,12 @@ function hookContextMenus(){
 				// from the background event
 				// means tab active changed.
 				// console.log(currentSelection); OK
-				chrome.runtime.sendMessage({action: "createContextSingle"}, function(response) {});
+				if ( isAvailableView() ) {
+					chrome.runtime.sendMessage({action: "createContextSingle"}, function(response) {});
+					restoreContextStatus();
+				} else {
+					chrome.runtime.sendMessage({action: "removeContext"}, function(response) {});
+				}
 				break;
 			case "gitzip-single-clicked":
 				alert("gitzip-single-clicked");

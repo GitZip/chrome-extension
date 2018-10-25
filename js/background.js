@@ -83,7 +83,10 @@ chrome.tabs.onActivated.addListener(function(activeInfo) {
 });
 
 chrome.tabs.onUpdated.addListener(function(tabId, changeInfo){
-	chrome.contextMenus.removeAll();
-	chrome.tabs.sendMessage(tabId, {action: "current-tab-active"}, function(response) {});
+	if ( changeInfo.status == "loading" ) {
+		chrome.contextMenus.removeAll();
+	} else if ( changeInfo.status == "complete" ) {
+		chrome.tabs.sendMessage(tabId, {action: "current-tab-active"}, function(response) {});
+	}
 });
 
