@@ -41,6 +41,27 @@ function getGitUrl(author, project, type, sha){
 	}else return false;	
 }
 
+function base64toBlob(base64Data, contentType) {
+    contentType = contentType || '';
+    var sliceSize = 1024;
+    var byteCharacters = atob(base64Data);
+    var bytesLength = byteCharacters.length;
+    var slicesCount = Math.ceil(bytesLength / sliceSize);
+    var byteArrays = new Array(slicesCount);
+
+    for (var sliceIndex = 0; sliceIndex < slicesCount; ++sliceIndex) {
+        var begin = sliceIndex * sliceSize;
+        var end = Math.min(begin + sliceSize, bytesLength);
+
+        var bytes = new Array(end - begin);
+        for (var offset = begin, i = 0; offset < end; ++i, ++offset) {
+            bytes[i] = byteCharacters[offset].charCodeAt(0);
+        }
+        byteArrays[sliceIndex] = new Uint8Array(bytes);
+    }
+    return new Blob(byteArrays, { type: contentType });
+}
+
 function zipContents(filename, contents){
     var zip = new JSZip();
     contents.forEach(function(item){
@@ -78,6 +99,14 @@ function callAjax(url){
 	});
 }
 
+function gaTrackMessage(baseRepo, githubUrl) {
+	chrome.runtime.sendMessage({
+		action: "gaTrack",
+		baseRepo: baseRepo,
+		githubUrl: githubUrl,
+		userAction: "collected"
+	});
+}
 
 var itemCollectSelector = ".repository-content .js-navigation-container tr.js-navigation-item:not(.up-tree)";
 
@@ -85,6 +114,7 @@ var Pool = {
 	_locked: false,
 	_el: null,
 	_dashBody: null,
+	_arrow: null,
 	init: function(){
 		// create dom
 		// Make the dom on right bottom
@@ -92,12 +122,14 @@ var Pool = {
 
 		if(!self._el){
 			var wrap = document.createElement('div'),
+				arrow = document.createElement('div'),
 				dash = document.createElement('div'),
 				down = document.createElement('p'),
 				tip = document.createElement('p');
 			
 			wrap.className = "gitzip-collect-wrap";
 			dash.className = "gitzip-collect-dash";
+			arrow.className = "gitzip-collect-arrow";
 			down.className = "gitzip-collect-down";
 			tip.className = "gitzip-collect-tip";
 
@@ -122,13 +154,19 @@ var Pool = {
 				})()
 			);
 
+			// arrow
+			arrow.appendChild(down);
+			arrow.appendChild(tip);
+
+			// wrap			
+			wrap.appendChild(arrow);
 			wrap.appendChild(dash);
-			wrap.appendChild(down);
-			wrap.appendChild(tip);
+
 			document.body.appendChild(wrap);
 
 			self._el = wrap;
 			self._dashBody = dash.querySelector(".gitzip-body");
+			self._arrow = arrow;
 
 			// hook events
 			down.addEventListener('click', function(){ self.download(); });
@@ -137,8 +175,8 @@ var Pool = {
 		
 		self.reset();
 	},
-	show: function(){ this._el && this._el.classList.add("gitzip-show"); },
-	hide: function(){ this._el && this._el.classList.remove("gitzip-show"); },
+	show: function(){ this._arrow && this._arrow.classList.add("gitzip-show"); },
+	hide: function(){ this._arrow && this._arrow.classList.remove("gitzip-show"); },
 	reset: function(){
 		var self = this;
 		!!checkHaveAnyCheck()? self.show() : self.hide();
@@ -148,51 +186,10 @@ var Pool = {
 		}
 		self._locked = false;
 	},
-	download: function(){
-		var self = this;
-		if(self._locked) return;
-
-		self._locked = true;
-
-		self._el.classList.add("gitzip-downloading");
-
-		var checkedItems = document.querySelectorAll(itemCollectSelector + " p.gitzip-show");
-
-		self.log("Collect checked items...");
-		var treeAjaxItems = [];
-		var blobAjaxCollection = [];
-		var fileContents = [];
-		var resolvedUrl = resolveUrl(window.location.href);
-		var currentKey = "";
-
-		self.log("Collect blob urls...");
-
-		for(var idx = 0, len = checkedItems.length; idx < len; idx++){
-			var item = checkedItems[idx],
-				sha = item.getAttribute('gitzip-sha'),
-				type = item.getAttribute('gitzip-type'),
-				title = item.getAttribute('gitzip-title'),
-				url = getGitUrl(resolvedUrl.author, resolvedUrl.project, type, sha);
-
-			if(type == "tree"){
-				treeAjaxItems.push({ title: title, url: url });
-			}else{
-				blobAjaxCollection.push({ path: title, blobUrl: url });	
-				self.log(title + " url fetched.")
-			}
-			// ga
-			var looklink = item.closest("tr").querySelector("td.content a");
-			if(looklink){
-				var baseRepo = [resolvedUrl.author, resolvedUrl.project].join("/");
-				var githubUrl = looklink.getAttribute("href").substring(1); // ignore slash "/" from begin
-				chrome.runtime.sendMessage({
-					action: "gaTrack",
-					baseRepo: baseRepo,
-					githubUrl: githubUrl,
-					userAction: "collected"
-				});
-			}
-		}
+	downloadPromiseProcess: function(resolvedUrl, treeAjaxItems, blobAjaxCollection){
+		var self = this,
+			fileContents = [],
+			currentKey = "";
 
 		// start progress
 		new Promise(function(res, rej){
@@ -223,8 +220,15 @@ var Pool = {
 	 		});
 	 		return Promise.all(promises);
 		}).then(function(){
-			self.log("Zip contents and trigger download...");
-			return zipContents([resolvedUrl.project].concat(resolvedUrl.path.split('/')).join('-'), fileContents);
+			if ( treeAjaxItems.length == 0 && blobAjaxCollection.length == 1) {
+				self.log("Trigger download...");
+				// to save as file
+				var singleItem = fileContents[0];
+				return saveAs(base64toBlob(singleItem.content), singleItem.path);
+			} else {
+				self.log("Zip contents and trigger download...");
+				return zipContents([resolvedUrl.project].concat(resolvedUrl.path.split('/')).join('-'), fileContents);
+			}
 		}).then(function(){
 			self.reset();
 		}).catch(function(err){
@@ -235,7 +239,77 @@ var Pool = {
 				self.log("<strong style='color:red;'>Please press GitZip extension icon to get token or input your token.</strong>");
 			}
 		});
+	},
+	downloadSingle: function(title, type, sha){
+		var self = this,
+			isTree = type == "tree",
+			isBlob = type == "blob";
+
+		if(self._locked || !(isTree || isBlob) ) return;
+
+		self._locked = true;
+
+		self._el.classList.add("gitzip-downloading");
+
+		var treeAjaxItems = [];
+		var blobAjaxCollection = [];
+		var resolvedUrl = resolveUrl(window.location.href);
+		var url = getGitUrl(resolvedUrl.author, resolvedUrl.project, type, sha);
+
+		self.log("Collect blob urls...");
+		if ( isTree ) {
+			treeAjaxItems.push({ title: title, url: url });
+		} else {
+			blobAjaxCollection.push({ path: title, blobUrl: url });	
+			self.log(title + " url fetched.")
+		}
+
+		// var baseRepo = [resolvedUrl.author, resolvedUrl.project].join("/");
+		// var githubUrl = looklink.getAttribute("href").substring(1); // ignore slash "/" from begin
+		// gaTrackMessage(baseRepo, githubUrl);
+
+		self.downloadPromiseProcess(resolvedUrl, treeAjaxItems, blobAjaxCollection);
+	},
+	download: function(){
+		var self = this;
+		if(self._locked) return;
+
+		self._locked = true;
+
+		self._el.classList.add("gitzip-downloading");
+
+		var checkedItems = document.querySelectorAll(itemCollectSelector + " p.gitzip-show");
+
+		self.log("Collect checked items...");
+		var treeAjaxItems = [];
+		var blobAjaxCollection = [];
+		var resolvedUrl = resolveUrl(window.location.href);
 		
+		self.log("Collect blob urls...");
+
+		for(var idx = 0, len = checkedItems.length; idx < len; idx++){
+			var item = checkedItems[idx],
+				sha = item.getAttribute('gitzip-sha'),
+				type = item.getAttribute('gitzip-type'),
+				title = item.getAttribute('gitzip-title'),
+				url = getGitUrl(resolvedUrl.author, resolvedUrl.project, type, sha);
+
+			if(type == "tree"){
+				treeAjaxItems.push({ title: title, url: url });
+			}else{
+				blobAjaxCollection.push({ path: title, blobUrl: url });	
+				self.log(title + " url fetched.")
+			}
+			// ga
+			var looklink = item.closest("tr").querySelector("td.content a");
+			if(looklink){
+				var baseRepo = [resolvedUrl.author, resolvedUrl.project].join("/");
+				var githubUrl = looklink.getAttribute("href").substring(1); // ignore slash "/" from begin
+				gaTrackMessage(baseRepo, githubUrl);
+			}
+		}
+		
+		self.downloadPromiseProcess(resolvedUrl, treeAjaxItems, blobAjaxCollection);
 	},
 	log: function(message){
 		this._dashBody.appendChild(document.createTextNode(message));
@@ -273,10 +347,13 @@ function onItemDblClick(e){
 var currentSelection = {};
 function generateEnterItemHandler(title, type, sha){
 	return function(){
-		chrome.runtime.sendMessage({action: "updateContextSingle", urlName: title, urlType: type}, function(response) {});
-		currentSelection.title = title;
-		currentSelection.type = type;
-		currentSelection.sha = sha;
+		chrome.runtime.sendMessage({action: "updateContextSingle", urlName: title, urlType: type}, function(response) {
+			currentSelection = {
+				title: title,
+				type: type,
+				sha: sha
+			};
+		});
 	}
 }
 
@@ -285,11 +362,13 @@ function restoreContextStatus(){
 	var repoContent = document.querySelector(".repository-content");
 	var pathText = repoContent.querySelector(".file-navigation .breadcrumb").innerText,
 		urlType = "";
-		
+
 	if ( pathText && typeof resolvedUrl.type == "string" && resolvedUrl.type.length ) {
 		urlType = resolvedUrl.type;
 	}
-	chrome.runtime.sendMessage({action: "updateContextSingle", urlName: pathText, urlType: urlType}, function(response) {});
+	chrome.runtime.sendMessage({action: "updateContextSingle", urlName: pathText, urlType: urlType}, function(response) {
+		currentSelection = { resolvedUrl: resolvedUrl };
+	});
 }
 
 // Check is in available view
@@ -382,7 +461,7 @@ function hookContextMenus(){
 	
 	chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 		switch (request.action){
-			case "current-tab-active":
+			case "github-tab-active":
 				// from the background event
 				// means tab active changed.
 				// console.log(currentSelection); OK
@@ -394,7 +473,18 @@ function hookContextMenus(){
 				}
 				break;
 			case "gitzip-single-clicked":
-				alert("gitzip-single-clicked");
+				// alert("gitzip-single-clicked");
+				// console.log("gitzip-single-clicked");
+				var title = currentSelection.title,
+					type = currentSelection.type,
+					sha = currentSelection.sha,
+					resolvedUrl = currentSelection.resolvedUrl;
+
+				if ( title && type && sha ) {
+					Pool.downloadSingle(title, type, sha);
+				} else if ( resolvedUrl ) {
+
+				}
 				break;
 		}
 	});

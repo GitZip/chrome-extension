@@ -79,14 +79,18 @@ chrome.tabs.onActivated.addListener(function(activeInfo) {
     chrome.contextMenus.removeAll();
 
     // change back to current tab
-    chrome.tabs.sendMessage(activeInfo.tabId, {action: "current-tab-active"}, function(response) {});
+    chrome.tabs.sendMessage(activeInfo.tabId, {action: "github-tab-active", from: "onActivated" }, function(response) {});
 });
 
-chrome.tabs.onUpdated.addListener(function(tabId, changeInfo){
+chrome.tabs.onUpdated.addListener(function(tabId, changeInfo){	
 	if ( changeInfo.status == "loading" ) {
 		chrome.contextMenus.removeAll();
 	} else if ( changeInfo.status == "complete" ) {
-		chrome.tabs.sendMessage(tabId, {action: "current-tab-active"}, function(response) {});
+		// coding like this because it would cause error during current page loading and then shift another tab quickly.
+		chrome.tabs.query({currentWindow: true, active: true}, function(tabs){
+			var tab = tabs[0];
+			if(tab) chrome.tabs.sendMessage(tab.id, {action: "github-tab-active", from: "onUpdated" }, function(response) {});
+		});
 	}
 });
 
