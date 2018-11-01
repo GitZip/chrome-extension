@@ -363,6 +363,11 @@ function restoreContextStatus(){
 	var pathText = repoContent.querySelector(".file-navigation .breadcrumb").innerText,
 		urlType = "";
 
+	var pathSplits = pathText.split('/');
+	pathSplits.shift();
+	if ( pathSplits[pathSplits.length - 1] == "" ) pathSplits.pop();
+	pathText = pathSplits.join('/');
+
 	if ( pathText && typeof resolvedUrl.type == "string" && resolvedUrl.type.length ) {
 		urlType = resolvedUrl.type;
 	}
