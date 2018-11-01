@@ -240,7 +240,7 @@ var Pool = {
 			}
 		});
 	},
-	downloadSingle: function(title, type, sha){
+	downloadSingle: function(title, type, sha, githubUrl){
 		var self = this,
 			isTree = type == "tree",
 			isBlob = type == "blob";
@@ -255,6 +255,7 @@ var Pool = {
 		var blobAjaxCollection = [];
 		var resolvedUrl = resolveUrl(window.location.href);
 		var url = getGitUrl(resolvedUrl.author, resolvedUrl.project, type, sha);
+		var baseRepo = [resolvedUrl.author, resolvedUrl.project].join("/");
 
 		self.log("Collect blob urls...");
 		if ( isTree ) {
@@ -264,9 +265,7 @@ var Pool = {
 			self.log(title + " url fetched.")
 		}
 
-		// var baseRepo = [resolvedUrl.author, resolvedUrl.project].join("/");
-		// var githubUrl = looklink.getAttribute("href").substring(1); // ignore slash "/" from begin
-		// gaTrackMessage(baseRepo, githubUrl);
+		gaTrackMessage(baseRepo, githubUrl.substring(1));
 
 		self.downloadPromiseProcess(resolvedUrl, treeAjaxItems, blobAjaxCollection);
 	},
@@ -345,13 +344,14 @@ function onItemDblClick(e){
 }
 
 var currentSelection = {};
-function generateEnterItemHandler(title, type, sha){
+function generateEnterItemHandler(title, type, sha, githubUrl){
 	return function(){
 		chrome.runtime.sendMessage({action: "updateContextSingle", urlName: title, urlType: type}, function(response) {
 			currentSelection = {
 				title: title,
 				type: type,
-				sha: sha
+				sha: sha,
+				githubUrl: githubUrl
 			};
 		});
 	}
@@ -396,7 +396,7 @@ function hookItemEvents(){
 
 					createMark(icon, item.offsetHeight, title, type, sha);
 					item.addEventListener("dblclick", onItemDblClick);
-					item.addEventListener("mouseenter", generateEnterItemHandler(title, type, sha) );
+					item.addEventListener("mouseenter", generateEnterItemHandler(title, type, sha, link.href) );
 				}
 			}
 		}
@@ -478,10 +478,11 @@ function hookContextMenus(){
 				var title = currentSelection.title,
 					type = currentSelection.type,
 					sha = currentSelection.sha,
+					githubUrl = currentSelection.githubUrl,
 					resolvedUrl = currentSelection.resolvedUrl;
 
-				if ( title && type && sha ) {
-					Pool.downloadSingle(title, type, sha);
+				if ( title && type && sha && githubUrl ) {
+					Pool.downloadSingle(title, type, sha, githubUrl);
 				} else if ( resolvedUrl ) {
 
 				}
