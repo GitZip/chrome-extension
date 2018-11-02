@@ -53,15 +53,6 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 			}
 			chrome.contextMenus.update("gitzip-single", updateObj);
 			break;
-		case "createContextMultiple":
-			chrome.contextMenus.create({
-				id: "gitzip-multiple",
-				title: "Download checked items"
-			});
-			break;
-		case "removeContextMultiple":
-			chrome.contextMenus.remove("gitzip-multiple");
-			break;
 		case "removeContext": 
 			chrome.contextMenus.removeAll();
 			break;

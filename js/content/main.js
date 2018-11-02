@@ -186,6 +186,15 @@ var Pool = {
 		}
 		self._locked = false;
 	},
+	handleApiError: function(errorObj){
+		var self = this;
+		console.log(errorObj);
+		var message = errorObj.message? errorObj.message : errorObj;
+		self.log("[ERROR] " + message);
+		if (message.indexOf("rate limit exceeded") >= 0){
+			self.log("<strong style='color:red;'>Please press GitZip extension icon to get token or input your token.</strong>");
+		}
+	},
 	downloadPromiseProcess: function(resolvedUrl, treeAjaxItems, blobAjaxCollection){
 		var self = this,
 			fileContents = [],
@@ -232,12 +241,7 @@ var Pool = {
 		}).then(function(){
 			self.reset();
 		}).catch(function(err){
-			console.log(err);
-			var message = err.message? err.message : err;
-			self.log(message);
-			if (message.indexOf("rate limit exceeded") >= 0){
-				self.log("<strong style='color:red;'>Please press GitZip extension icon to get token or input your token.</strong>");
-			}
+			self.handleApiError(err);
 		});
 	},
 	downloadItems: function(items){
@@ -248,7 +252,6 @@ var Pool = {
 
 		self._el.classList.add("gitzip-downloading");
 
-		self.log("Collect checked items...");
 		var treeAjaxItems = [];
 		var blobAjaxCollection = [];
 		var resolvedUrl = resolveUrl(window.location.href);
@@ -287,6 +290,56 @@ var Pool = {
 	},
 	download: function(){
 		this.downloadItems(document.querySelectorAll(itemCollectSelector + " p.gitzip-show"));
+	},
+	downloadFile: function(resolvedUrl){
+		var self = this;
+		if(self._locked) return;
+
+		self._locked = true;
+
+		self._el.classList.add("gitzip-downloading");
+
+		var breadcrumb = document.querySelector(".repository-content .file-navigation .breadcrumb"),
+			rootAnchor = breadcrumb ? breadcrumb.querySelector("a") : null;
+		if ( rootAnchor && rootAnchor.href ) {
+			// for the cases like this: https://github.com/Microsoft/CNTK/blob/aayushg/autoencoder/Tools/build-and-test
+			// to find the branch in the case of branch has slash charactor.
+			var hrefSplits = rootAnchor.href.split("/tree/");
+			if ( hrefSplits.length > 1 && resolvedUrl.branch != hrefSplits[1] ) {
+				var newBranch = hrefSplits[1];
+				var inputSplits = resolvedUrl.inputUrl.split(newBranch);
+				var newPath = inputSplits[1].slice(1);
+				var newRoot = "https://github.com/" + resolvedUrl.author + "/" + resolvedUrl.project + "/tree/" + newBranch;
+
+				resolvedUrl.branch = newBranch;
+				resolvedUrl.path = newPath;
+				resolvedUrl.rootUrl = newRoot;
+			}
+		}
+		new Promise(function(res, rej){
+			chrome.runtime.sendMessage({action: "getKey"}, function(response){ res(response); });
+		}).then(function(key){
+			self.log("Collect blob content...");
+			
+			currentKey = key || "";
+			var params = [];
+			var fetchedUrl = "https://api.github.com/repos/" + resolvedUrl.author + "/" + resolvedUrl.project + "/contents/" + resolvedUrl.path;
+
+			if ( currentKey ) params.push("access_token=" + currentKey);
+			if ( resolvedUrl.branch ) params.push("ref=" + resolvedUrl.branch);
+			if ( params.length ) fetchedUrl += "?" + params.join('&');
+
+			return callAjax(fetchedUrl);
+		}).then(function(treeRes){
+			// console.log(treeRes);
+			self.log(treeRes.name + " content has collected.");
+			self.log("Trigger download...");
+			return saveAs(base64toBlob(treeRes.content), treeRes.name);
+		}).then(function(){
+			self.reset();
+		}).catch(function(err){
+			self.handleApiError(err);
+		});
 	},
 	log: function(message){
 		this._dashBody.appendChild(document.createTextNode(message));
@@ -381,6 +434,13 @@ function hookItemEvents(){
 		}
 	}
 
+	function hookMouseLeaveEvent(bindEl){
+		if ( bindEl && !bindEl._hookLeave ) {
+			bindEl.addEventListener("mouseleave", restoreContextStatus);
+			bindEl._hookLeave = true;
+		}
+	}
+
 	var lazyCaseObserver = null;
 	var repoContent = document.querySelector(".repository-content");
 	var fileWrap = repoContent ? repoContent.querySelector(".file-wrap") : null;
@@ -395,6 +455,7 @@ function hookItemEvents(){
 					addNodes && addNodes.length && addNodes.forEach(function(el){
 						if(el.classList && el.classList.contains("file-wrap") && lazyCaseObserver){
 							// console.log("in mutation adds");
+							hookMouseLeaveEvent(el);
 							appendToIcons();
 							lazyCaseObserver.disconnect();
 							lazyCaseObserver = null;
@@ -406,11 +467,8 @@ function hookItemEvents(){
 		}
 	}
 
-	if ( fileWrap && !fileWrap._hookLeave ) {
-		fileWrap.addEventListener("mouseleave", restoreContextStatus);
-		fileWrap._hookLeave = true;
-	}
-
+	hookMouseLeaveEvent(fileWrap);
+	
 	appendToIcons();
 
 	Pool.init();
@@ -457,17 +515,25 @@ function hookContextMenus(){
 					Pool.downloadSingle(currentSelectEl);
 				} else {
 					var resolvedUrl = resolveUrl(window.location.href);
-					var breadcrumb = document.querySelector(".repository-content .file-navigation .breadcrumb");
+					var baseRepo = [resolvedUrl.author, resolvedUrl.project].join("/");
+					var fileNavigation = document.querySelector(".repository-content .file-navigation"),
+						breadcrumb = fileNavigation ? fileNavigation.querySelector(".breadcrumb") : null,
+						downloadBtn = fileNavigation ? fileNavigation.querySelector("details a[href^='/" + baseRepo + "/']") : null;
 					if ( breadcrumb && breadcrumb.innerText ) {
-						// is in tree or file view
 						if ( resolvedUrl.type == "tree" ) {
+							// in tree view
 							Pool.downloadAll();
 						} else if ( resolvedUrl.type == "blob" ) {
-
+							// in file view
+							Pool.downloadFile(resolvedUrl);
+						} else {
+							alert("Unknown Operation");
 						}
-					} else {
+					} else if ( downloadBtn ) {
 						// in root
-
+						downloadBtn.click();
+					} else {
+						alert("Unknown Operation");
 					}
 				}
 				break;
