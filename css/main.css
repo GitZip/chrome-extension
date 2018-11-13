@@ -29,10 +29,26 @@
 }
 
 .gitzip-body{
-	margin: 15px;
-	padding: 0px;
+	margin: 10px 0;
 	height: 246px;
 	overflow: auto;
+}
+
+.gitzip-body p{
+	margin: 0;
+	padding: 0 15px;
+}
+
+.gitzip-body p.warn{
+	background-color: #fffbe7;
+	color: #624115;
+	border: 1px solid #fff4c7;
+}
+
+.gitzip-body p.error{
+	background-color: #fff0f0;
+	color: #ff081e;
+	border: 1px solid #ffd6d6;
 }
 
 .gitzip-downloading{

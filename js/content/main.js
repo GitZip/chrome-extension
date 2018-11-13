@@ -87,9 +87,9 @@ function callAjax(url){
 	    xmlhttp.onreadystatechange = function(){
 	        if (xmlhttp.readyState == 4){
 	        	if(xmlhttp.status == 200){
-	        		resolve(xmlhttp.response);
+	        		resolve(xmlhttp);
 	        	}else if(xmlhttp.status >= 400){
-	        		reject(xmlhttp.response);
+	        		reject(xmlhttp);
 	        	}
 	        }
 	    }
@@ -186,13 +186,59 @@ var Pool = {
 		}
 		self._locked = false;
 	},
-	handleApiError: function(errorObj){
+	checkTokenAndScope: function(){
 		var self = this;
-		console.log(errorObj);
-		var message = errorObj.message? errorObj.message : errorObj;
-		self.log("[ERROR] " + message);
-		if (message.indexOf("rate limit exceeded") >= 0){
-			self.log("<strong style='color:red;'>Please press GitZip extension icon to get token or input your token.</strong>");
+		var checkUrl = "https://api.github.com/rate_limit";
+		var isPrivate = !!document.querySelector(".repohead-details-container h1.private");
+
+		return new Promise(function(res, rej){
+			chrome.runtime.sendMessage({action: "getKey"}, function(response){ res(response); });
+		}).then(function(key){
+			
+			if ( !key ) {
+				if ( isPrivate ) return Promise.reject("You should have token with `repo` scope.");
+				else {
+					self.log("Running in the rate limit.", "warn");
+					return key;
+				}
+			}
+
+			self.log("Check token and scopes...");
+			
+			return callAjax(checkUrl + "?access_token=" + key)
+				.then(function(xmlResponse){
+					// return status 200 means token is valid
+					if ( isPrivate ) {
+						var strScopes = xmlResponse.getResponseHeader("X-OAuth-Scopes");
+						var scopes = strScopes ? strScopes.split(",").map(function(str){ return str.trim(); }) : null;
+						if ( !scopes || scopes.indexOf("repo") == -1 ) {
+							return Promise.reject("Your token cannot access private repo.");
+						}
+					}
+					return key;
+				});
+		}).catch(function(err){
+			if ( typeof err == "string" ) {
+				self.log(err, "error");
+				self.log("Please click GitZip extension icon to get private token.", "warn");
+				return Promise.reject();
+			} else return Promise.reject(err);
+		});
+	},
+	handleApiError: function(xmlResponse){
+		var self = this;
+		// console.log(errorObj);
+		if ( xmlResponse ) {
+			var status = xmlResponse.status;
+			var response = xmlResponse.response;
+			var message = (response && response.message) ? response.message : xmlResponse.statusText;
+			self.log(message, "error");
+			if (message.indexOf("rate limit exceeded") >= 0){
+				self.log("Please click GitZip extension icon to get token or input your token.", "warn");
+			}
+			if ( status == 401 ) {
+				self.log("Your token is invalid, please re-login github and get token again.", "warn");
+			}
 		}
 	},
 	downloadPromiseProcess: function(resolvedUrl, treeAjaxItems, blobAjaxCollection){
@@ -201,13 +247,12 @@ var Pool = {
 			currentKey = "";
 
 		// start progress
-		new Promise(function(res, rej){
-			chrome.runtime.sendMessage({action: "getKey"}, function(response){ res(response); });	
-		}).then(function(key){
+		self.checkTokenAndScope().then(function(key){
 			currentKey = key || "";
 			var promises = treeAjaxItems.map(function(item){
 				var fetchedUrl = item.url + "?recursive=1" + (currentKey? ("&access_token=" + currentKey) : "");
-				return callAjax(fetchedUrl).then(function(treeRes){
+				return callAjax(fetchedUrl).then(function(xmlResponse){
+					var treeRes = xmlResponse.response;
      				treeRes.tree.forEach(function(blobItem){
      					if(blobItem.type == "blob"){
      						var path = item.title + "/" + blobItem.path;
@@ -222,7 +267,8 @@ var Pool = {
 			self.log("Collect blob contents...");
 			var promises = blobAjaxCollection.map(function(item){
 	 			var fetchedUrl = item.blobUrl + (currentKey? ("?access_token=" + currentKey) : "");
-	 			return callAjax(fetchedUrl).then(function(blobRes){
+	 			return callAjax(fetchedUrl).then(function(xmlResponse){
+	 				var blobRes = xmlResponse.response;
 	 				fileContents.push({ path: item.path, content: blobRes.content });
 	 				self.log(item.path + " content has collected.");
 	 			});
@@ -316,9 +362,8 @@ var Pool = {
 				resolvedUrl.rootUrl = newRoot;
 			}
 		}
-		new Promise(function(res, rej){
-			chrome.runtime.sendMessage({action: "getKey"}, function(response){ res(response); });
-		}).then(function(key){
+		
+		self.checkTokenAndScope().then(function(key){
 			self.log("Collect blob content...");
 			
 			currentKey = key || "";
@@ -330,8 +375,9 @@ var Pool = {
 			if ( params.length ) fetchedUrl += "?" + params.join('&');
 
 			return callAjax(fetchedUrl);
-		}).then(function(treeRes){
+		}).then(function(xmlResponse){
 			// console.log(treeRes);
+			var treeRes = xmlResponse.response;
 			self.log(treeRes.name + " content has collected.");
 			self.log("Trigger download...");
 			return saveAs(base64toBlob(treeRes.content), treeRes.name);
@@ -341,9 +387,15 @@ var Pool = {
 			self.handleApiError(err);
 		});
 	},
-	log: function(message){
-		this._dashBody.appendChild(document.createTextNode(message));
-		this._dashBody.appendChild(document.createElement("br"));
+	log: function(message, type){
+		var pNode = document.createElement("p"),
+			textNode = document.createTextNode(message);
+
+		type && pNode.classList.add(type);
+
+		pNode.appendChild(textNode);
+
+		this._dashBody.appendChild(pNode);
 		this._dashBody.scrollTop = this._dashBody.scrollHeight - this._dashBody.clientHeight;
 	}
 };
