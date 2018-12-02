@@ -28,6 +28,17 @@
     border-top-right-radius: 3px;
 }
 
+.gitzip-close{
+	float: right;
+	font-weight: 800;
+	cursor: pointer;
+	visibility: hidden;
+}
+
+.gitzip-fail .gitzip-close{
+	visibility: visible;
+}
+
 .gitzip-body{
 	margin: 10px 0;
 	height: 246px;

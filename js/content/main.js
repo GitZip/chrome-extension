@@ -142,6 +142,13 @@ var Pool = {
 					var c = document.createElement("div");
 					c.className = "gitzip-header";
 					c.appendChild(document.createTextNode("Progress Dashboard"));
+
+					var close = document.createElement("span");
+					close.className = "gitzip-close";
+					close.appendChild(document.createTextNode("\u2715"));
+					close.addEventListener('click', function(){ self.reset(); });
+
+					c.appendChild(close);
 					return c;
 				})()
 			);
@@ -181,6 +188,7 @@ var Pool = {
 		var self = this;
 		!!checkHaveAnyCheck()? self.show() : self.hide();
 		self._el.classList.remove("gitzip-downloading");
+		self._el.classList.remove("gitzip-fail");
 		while (self._dashBody.firstChild) {
 			self._dashBody.removeChild(self._dashBody.firstChild);
 		}
@@ -388,15 +396,17 @@ var Pool = {
 		});
 	},
 	log: function(message, type){
-		var pNode = document.createElement("p"),
+		var self = this,
+			pNode = document.createElement("p"),
 			textNode = document.createTextNode(message);
 
 		type && pNode.classList.add(type);
+		if (type == "error") self._el.classList.add("gitzip-fail");
 
 		pNode.appendChild(textNode);
 
-		this._dashBody.appendChild(pNode);
-		this._dashBody.scrollTop = this._dashBody.scrollHeight - this._dashBody.clientHeight;
+		self._dashBody.appendChild(pNode);
+		self._dashBody.scrollTop = self._dashBody.scrollHeight - self._dashBody.clientHeight;
 	}
 };
 
