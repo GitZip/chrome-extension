@@ -8,7 +8,7 @@ var repoExp = new RegExp("^https://github.com/([^/]+)/([^/]+)(/(tree|blob)/([^/]
  * @param {ResolvedURL}
  */
 function resolveUrl(repoUrl){
-    if(typeof repoUrl != 'string') return;
+    if(typeof repoUrl != 'string') return false;
     var matches = repoUrl.match(repoExp);
     if(matches && matches.length > 0){
     	var rootUrl = (matches[5])?
@@ -457,7 +457,7 @@ function restoreContextStatus(){
 
 // Check is in available view
 function isAvailableView(){
-	return resolveUrl(window.location.href) !== false;
+	return !!document.querySelector("head meta[value=repo_source]") && resolveUrl(window.location.href) !== false;
 }
 
 function hookItemEvents(){
