@@ -235,7 +235,6 @@ var Pool = {
 	},
 	handleApiError: function(xmlResponse){
 		var self = this;
-		// console.log(errorObj);
 		if ( xmlResponse ) {
 			var status = xmlResponse.status;
 			var response = xmlResponse.response;
@@ -384,7 +383,6 @@ var Pool = {
 
 			return callAjax(fetchedUrl);
 		}).then(function(xmlResponse){
-			// console.log(treeRes);
 			var treeRes = xmlResponse.response;
 			self.log(treeRes.name + " content has collected.");
 			self.log("Trigger download...");
@@ -516,7 +514,6 @@ function hookItemEvents(){
 					var addNodes = mutation.addedNodes;
 					addNodes && addNodes.length && addNodes.forEach(function(el){
 						if(el.classList && el.classList.contains("file-wrap") && lazyCaseObserver){
-							// console.log("in mutation adds");
 							hookMouseLeaveEvent(el);
 							appendToIcons();
 							lazyCaseObserver.disconnect();
@@ -563,7 +560,6 @@ function hookContextMenus(){
 			case "github-tab-active":
 				// from the background event
 				// means tab active changed.
-				// console.log(currentSelection); OK
 				if ( isAvailableView() ) {
 					chrome.runtime.sendMessage({action: "createContextSingle"}, function(response) {});
 					restoreContextStatus();
@@ -572,7 +568,6 @@ function hookContextMenus(){
 				}
 				break;
 			case "gitzip-single-clicked":
-				// console.log("gitzip-single-clicked");
 				if ( currentSelectEl ) {
 					Pool.downloadSingle(currentSelectEl);
 				} else {
