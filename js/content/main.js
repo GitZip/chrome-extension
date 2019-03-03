@@ -536,7 +536,7 @@ function hookItemEvents(){
 // pjax detection
 function hookMutationObserver(){
 	// select the target node
-	var target = document.querySelector("div[data-pjax-container]");
+	var target = document.querySelector("*[data-pjax-container]");
 	
 	// create an observer instance
 	var observer = new MutationObserver(function(mutations) {
