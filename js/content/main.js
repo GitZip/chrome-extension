@@ -561,12 +561,12 @@ function hookContextMenus(){
 				// from the background event
 				// means tab active changed.
 				if ( isAvailableView() ) {
-					chrome.runtime.sendMessage({action: "createContextSingle"}, function(response) {});
+					chrome.runtime.sendMessage({action: "createContextSingle"});
 					restoreContextStatus();
 				} else {
-					chrome.runtime.sendMessage({action: "removeContext"}, function(response) {});
+					chrome.runtime.sendMessage({action: "removeContext"});
 				}
-				break;
+				return true;
 			case "gitzip-single-clicked":
 				if ( currentSelectEl ) {
 					Pool.downloadSingle(currentSelectEl);
@@ -593,7 +593,7 @@ function hookContextMenus(){
 						alert("Unknown Operation");
 					}
 				}
-				break;
+				return true;
 		}
 	});
 }

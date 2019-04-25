@@ -15,8 +15,8 @@ ga('send', 'pageview', '/background.html');
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 	switch (request.action){
 		case "showIcon":
-			chrome.pageAction.show(sender.tab.id);
-			break;
+			chrome.pageAction.show(sender.tab.id, function(res){ sendResponse(res); });
+			return true;
 		case "getKey":
 			chrome.storage.sync.get("gitzip-github-token", function(res){
 				sendResponse(res["gitzip-github-token"] || "");
@@ -41,7 +41,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 				id: "gitzip-single",
 				title: "Download Zip"
 			});
-			break;
+			return true;
 		case "updateContextSingle":
 			var updateObj = {};
 			if ( request.urlType == "blob" ) {
@@ -51,17 +51,19 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 			} else {
 				updateObj.title = "Download Zip";
 			}
-			chrome.contextMenus.update("gitzip-single", updateObj);
-			break;
+			chrome.contextMenus.update("gitzip-single", updateObj, function(res){
+				sendResponse(updateObj);
+			});
+			return true;
 		case "removeContext": 
-			chrome.contextMenus.removeAll();
-			break;
+			chrome.contextMenus.removeAll(function(res){ sendResponse(res); });
+			return true;
 	}
 });
 
 chrome.contextMenus.onClicked.addListener(function(info, tab){
 	if ( info.menuItemId.toString().indexOf("gitzip-") != -1 ) {
-		chrome.tabs.sendMessage(tab.id, {action: info.menuItemId + "-clicked"}, function(response) {});
+		chrome.tabs.sendMessage(tab.id, {action: info.menuItemId + "-clicked"});
 	}
 });
 
@@ -70,7 +72,7 @@ chrome.tabs.onActivated.addListener(function(activeInfo) {
     chrome.contextMenus.removeAll();
 
     // change back to current tab
-    chrome.tabs.sendMessage(activeInfo.tabId, {action: "github-tab-active", from: "onActivated" }, function(response) {});
+    chrome.tabs.sendMessage(activeInfo.tabId, {action: "github-tab-active", from: "onActivated" });
 });
 
 chrome.tabs.onUpdated.addListener(function(tabId, changeInfo){	
@@ -80,7 +82,7 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo){
 		// coding like this because it would cause error during current page loading and then shift another tab quickly.
 		chrome.tabs.query({currentWindow: true, active: true}, function(tabs){
 			var tab = tabs[0];
-			if(tab) chrome.tabs.sendMessage(tab.id, {action: "github-tab-active", from: "onUpdated" }, function(response) {});
+			if(tab) chrome.tabs.sendMessage(tab.id, {action: "github-tab-active", from: "onUpdated" });
 		});
 	}
 });
