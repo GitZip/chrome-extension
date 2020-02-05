@@ -79,7 +79,7 @@ function zipContents(filename, contents){
     });	
 };
 
-function callAjax(url){
+function callAjax(url, token){
 	return new Promise(function(resolve, reject){
 		var xmlhttp;
 	    // compatible with IE7+, Firefox, Chrome, Opera, Safari
@@ -95,6 +95,7 @@ function callAjax(url){
 	    }
 	    xmlhttp.responseType = "json";
 	    xmlhttp.open("GET", url, true);
+	    if ( token ) xmlhttp.setRequestHeader("Authorization", "token " + token);
 	    xmlhttp.send();
 	});
 }
@@ -213,7 +214,7 @@ var Pool = {
 
 			self.log("Check token and scopes...");
 			
-			return callAjax(checkUrl + "?access_token=" + key)
+			return callAjax(checkUrl, key)
 				.then(function(xmlResponse){
 					// return status 200 means token is valid
 					if ( isPrivate ) {
@@ -257,8 +258,8 @@ var Pool = {
 		self.checkTokenAndScope().then(function(key){
 			currentKey = key || "";
 			var promises = treeAjaxItems.map(function(item){
-				var fetchedUrl = item.url + "?recursive=1" + (currentKey? ("&access_token=" + currentKey) : "");
-				return callAjax(fetchedUrl).then(function(xmlResponse){
+				var fetchedUrl = item.url + "?recursive=1";
+				return callAjax(fetchedUrl, currentKey).then(function(xmlResponse){
 					var treeRes = xmlResponse.response;
      				treeRes.tree.forEach(function(blobItem){
      					if(blobItem.type == "blob"){
@@ -273,8 +274,8 @@ var Pool = {
 		}).then(function(){
 			self.log("Collect blob contents...");
 			var promises = blobAjaxCollection.map(function(item){
-	 			var fetchedUrl = item.blobUrl + (currentKey? ("?access_token=" + currentKey) : "");
-	 			return callAjax(fetchedUrl).then(function(xmlResponse){
+	 			var fetchedUrl = item.blobUrl;
+	 			return callAjax(fetchedUrl, currentKey).then(function(xmlResponse){
 	 				var blobRes = xmlResponse.response;
 	 				fileContents.push({ path: item.path, content: blobRes.content });
 	 				self.log(item.path + " content has collected.");
@@ -377,11 +378,10 @@ var Pool = {
 			var params = [];
 			var fetchedUrl = "https://api.github.com/repos/" + resolvedUrl.author + "/" + resolvedUrl.project + "/contents/" + resolvedUrl.path;
 
-			if ( currentKey ) params.push("access_token=" + currentKey);
 			if ( resolvedUrl.branch ) params.push("ref=" + resolvedUrl.branch);
 			if ( params.length ) fetchedUrl += "?" + params.join('&');
 
-			return callAjax(fetchedUrl);
+			return callAjax(fetchedUrl, currentKey);
 		}).then(function(xmlResponse){
 			var treeRes = xmlResponse.response;
 			self.log(treeRes.name + " content has collected.");
