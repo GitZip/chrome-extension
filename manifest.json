@@ -3,7 +3,7 @@
 
     "name": "GitZip for github",
     "description": "It can make the sub-directories and files of github repository as zip and download it",
-    "version": "0.3.3",
+    "version": "0.3.4",
 
     "icons": {
         "16": "images/icon-16px.png",
@@ -24,8 +24,7 @@
     "permissions": [
         "storage",
         "activeTab",
-        "contextMenus",
-        "*://github.com/*"
+        "contextMenus"
     ],
 
     "content_scripts": [
