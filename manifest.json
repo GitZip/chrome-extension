@@ -23,7 +23,6 @@
 
     "permissions": [
         "storage",
-        "tabs",
         "contextMenus",
         "https://api.github.com/*"
     ],

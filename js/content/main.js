@@ -558,10 +558,12 @@ function hookMutationObserver(){
 	// observer.disconnect();
 }
 
-function hookContextMenus(){
+function hookChromeEvents(){
 	
 	chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 		switch (request.action){
+			case "getCurrentPath":
+				sendResponse(window.location.href);
 			case "github-tab-active":
 				// from the background event
 				// means tab active changed.
@@ -607,4 +609,4 @@ function hookContextMenus(){
 // refers: https://developer.chrome.com/extensions/content_scripts
 hookMutationObserver();
 hookItemEvents();
-hookContextMenus();
+hookChromeEvents();

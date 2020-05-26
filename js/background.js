@@ -36,6 +36,14 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 			};
 			ga('send', eventGaObj);
 			break;
+		case "getCurrentPath":
+			chrome.tabs.query({currentWindow: true, active: true}, function(tabs){
+				var tab = tabs[0];
+				if(tab) chrome.tabs.sendMessage(tab.id, {action: "getCurrentPath" }, function(res){
+					sendResponse(res);
+				});
+			});
+			return true;
 		case "createContextSingle":
 			chrome.contextMenus.create({
 				id: "gitzip-single",
