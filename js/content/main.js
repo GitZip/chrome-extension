@@ -114,7 +114,19 @@ function gaTrackMessage(baseRepo, githubUrl) {
 	});
 }
 
-var itemCollectSelector = ".repository-content .js-navigation-container tr.js-navigation-item:not(.up-tree)";
+function hasRepoContainer(list) {
+	if ( list && list.length ) {
+		for (var i = 0, len = list.length; i < len; i++) {
+			var item = list[i];
+			if (item.querySelector && item.querySelector(".repository-content")) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+var itemCollectSelector = ".repository-content .js-navigation-item";
 
 var Pool = {
 	_locked: false,
@@ -203,7 +215,7 @@ var Pool = {
 	checkTokenAndScope: function(){
 		var self = this;
 		var checkUrl = "https://api.github.com/rate_limit";
-		var isPrivate = !!document.querySelector(".repohead-details-container h1.private");
+		var isPrivate = !!document.querySelector(".repohead h1.private");
 
 		return new Promise(function(res, rej){
 			chrome.runtime.sendMessage({action: "getKey"}, function(response){ res(response); });
@@ -331,7 +343,7 @@ var Pool = {
 				self.log(title + " url fetched.")
 			}
 			// ga
-			var looklink = item.closest("tr").querySelector("td.content a");
+			var looklink = item.closest(".js-navigation-item").querySelector("a[id]");
 			if(looklink){
 				var baseRepo = [resolvedUrl.author, resolvedUrl.project].join("/");
 				var githubUrl = looklink.getAttribute("href").substring(1); // ignore slash "/" from begin
@@ -358,7 +370,7 @@ var Pool = {
 
 		self._el.classList.add("gitzip-downloading");
 
-		var breadcrumb = document.querySelector(".repository-content .file-navigation .breadcrumb"),
+		var breadcrumb = document.querySelector(".repository-content .file-navigation .js-path-segment"),
 			rootAnchor = breadcrumb ? breadcrumb.querySelector("a") : null;
 		if ( rootAnchor && rootAnchor.href ) {
 			// for the cases like this: https://github.com/Microsoft/CNTK/blob/aayushg/autoencoder/Tools/build-and-test
@@ -429,12 +441,12 @@ function createMark(parent, height, title, type, sha){
 }
 
 function checkHaveAnyCheck(){
-	var checkItems = document.querySelectorAll(itemCollectSelector + " td.icon p.gitzip-show");
+	var checkItems = document.querySelectorAll(itemCollectSelector + " p.gitzip-show");
 	return checkItems.length? checkItems : false;
 }
 
 function onItemDblClick(e){
-	var markTarget = e.target.closest("tr.js-navigation-item").querySelector('td.icon p.gitzip-check-mark');
+	var markTarget = e.target.closest(".js-navigation-item").querySelector('p.gitzip-check-mark');
 	if(markTarget) markTarget.classList.toggle("gitzip-show");
 	!!checkHaveAnyCheck()? Pool.show() : Pool.hide();
 }
@@ -451,18 +463,19 @@ function generateEnterItemHandler(title, type){
 
 function restoreContextStatus(){
 	var resolvedUrl = resolveUrl(window.location.href);
-	var repoContent = document.querySelector(".repository-content"),
-		breadcrumb = repoContent ? repoContent.querySelector(".file-navigation .breadcrumb") : null,
-		pathText = breadcrumb ? breadcrumb.innerText : "",
-		urlType = "";
+	var fileNavigation = document.querySelector(".repository-content .file-navigation");
+	var singleFileNavigation = document.querySelector(".repository-content .breadcrumb .js-repo-root");
+	var breadcrumb, pathText, urlType = "";
 
-	if ( pathText && typeof resolvedUrl.type == "string" && resolvedUrl.type.length ) {
-		var pathSplits = pathText.split('/');
-		pathSplits.shift();
-		if ( pathSplits[pathSplits.length - 1] == "" ) pathSplits.pop();
-		pathText = pathSplits.join('/');
+	if ( fileNavigation && (breadcrumb = fileNavigation.querySelector(".js-repo-root")) ) {
+		// in tree view
+		pathText = resolvedUrl.path.split('/').pop();
 		urlType = resolvedUrl.type;
-	}
+	} else if ( singleFileNavigation ) {
+		// in file view
+		pathText = resolvedUrl.path.split('/').pop();
+		urlType = resolvedUrl.type;
+	} 
 	chrome.runtime.sendMessage({action: "updateContextSingle", urlName: pathText, urlType: urlType}, function(response) {
 		currentSelectEl = null;
 	});
@@ -481,17 +494,16 @@ function hookItemEvents(){
 		if(itemLen){
 			for(var i = 0; i < itemLen; i++){
 				var item = items[i],
-					icon = item.querySelector("td.icon"),
-					link = item.querySelector("td.content a"),
-					blob = icon.querySelector(".octicon-file-text, .octicon-file"),
-					tree = icon.querySelector(".octicon-file-directory");	
-
+					link = item.querySelector("a[id]"),
+					blob = item.querySelector(".octicon-file-text, .octicon-file"),
+					tree = item.querySelector(".octicon-file-directory");
+				
 				if(link && (tree || blob)){
 					var title = link.textContent,
 						type = tree? "tree" : "blob",
 						sha = link.id.split('-')[1];
 
-					createMark(icon, item.offsetHeight, title, type, sha);
+					createMark(item, item.offsetHeight, title, type, sha);
 					item.addEventListener("dblclick", onItemDblClick);
 					item.addEventListener("mouseenter", generateEnterItemHandler(title, type, sha, link.href) );
 				}
@@ -508,32 +520,32 @@ function hookItemEvents(){
 
 	var lazyCaseObserver = null;
 	var repoContent = document.querySelector(".repository-content");
-	var fileWrap = repoContent ? repoContent.querySelector(".file-wrap") : null;
+	var lazyElement = repoContent ? repoContent.querySelector("include-fragment .js-details-container") : null;
 
-	if(fileWrap && fileWrap.tagName.toLowerCase() == "include-fragment"){
+	if(lazyElement){
 		// lazy case
-		var lazyTarget = document.querySelector(".repository-content");
-		if(lazyTarget){
-			lazyCaseObserver = new MutationObserver(function(mutations) {
-				mutations.forEach(function(mutation) {
-					var addNodes = mutation.addedNodes;
-					addNodes && addNodes.length && addNodes.forEach(function(el){
-						if(el.classList && el.classList.contains("file-wrap") && lazyCaseObserver){
-							hookMouseLeaveEvent(el);
-							appendToIcons();
-							lazyCaseObserver.disconnect();
-							lazyCaseObserver = null;
-						}
-					});
-				});    
-			});
-			lazyCaseObserver.observe(lazyTarget, { childList: true } );
+		// var lazyTarget = document.querySelector(".js-details-container");
+		lazyCaseObserver = new MutationObserver(function(mutations) {
+			mutations.forEach(function(mutation) {
+				var addNodes = mutation.addedNodes;
+				addNodes && addNodes.length && addNodes.forEach(function(el){
+					if(el.classList && el.classList.contains("js-details-container") && lazyCaseObserver){
+						hookMouseLeaveEvent(el);
+						appendToIcons();
+						lazyCaseObserver.disconnect();
+						lazyCaseObserver = null;
+					}
+				});
+			});    
+		});
+		lazyCaseObserver.observe(repoContent, { childList: true, subtree: true } );
+	} else {
+		var item;
+		if (item = document.querySelector(itemCollectSelector)) {
+			hookMouseLeaveEvent(item.closest(".js-details-container"));
+			appendToIcons();
 		}
 	}
-
-	hookMouseLeaveEvent(fileWrap);
-	
-	appendToIcons();
 
 	Pool.init();
 }
@@ -547,12 +559,14 @@ function hookMutationObserver(){
 	var observer = new MutationObserver(function(mutations) {
 		mutations.forEach(function(mutation) {
 			var addNodes = mutation.addedNodes;
-			if(addNodes && addNodes.length) hookItemEvents();
+			if(hasRepoContainer(addNodes)) {
+				hookItemEvents();
+			}
 		});    
 	});
 	 
 	// pass in the target node, as well as the observer options
-	observer.observe(target, { childList: true } );
+	target && observer.observe(target, { childList: true } );
 	 
 	// later, you can stop observing
 	// observer.disconnect();
@@ -580,19 +594,19 @@ function hookChromeEvents(){
 				} else {
 					var resolvedUrl = resolveUrl(window.location.href);
 					var baseRepo = [resolvedUrl.author, resolvedUrl.project].join("/");
-					var fileNavigation = document.querySelector(".repository-content .file-navigation"),
-						breadcrumb = fileNavigation ? fileNavigation.querySelector(".breadcrumb") : null,
-						downloadBtn = fileNavigation ? fileNavigation.querySelector("details a[href^='/" + baseRepo + "/']") : null;
-					if ( breadcrumb && breadcrumb.innerText ) {
-						if ( resolvedUrl.type == "tree" ) {
-							// in tree view
-							Pool.downloadAll();
-						} else if ( resolvedUrl.type == "blob" ) {
-							// in file view
-							Pool.downloadFile(resolvedUrl);
-						} else {
-							alert("Unknown Operation");
-						}
+
+					var fileNavigation = document.querySelector(".repository-content .file-navigation");
+					var singleFileNavigation = document.querySelector(".repository-content .breadcrumb .js-repo-root");
+
+					var breadcrumb,
+						downloadBtn = fileNavigation ? fileNavigation.querySelector("get-repo-controller a[href^='/" + baseRepo + "/']") : null;
+
+					if ( fileNavigation && (breadcrumb = fileNavigation.querySelector(".js-repo-root")) ) {
+						// in tree view
+						Pool.downloadAll();
+					} else if ( singleFileNavigation ) {
+						// in file view
+						Pool.downloadFile(resolvedUrl);
 					} else if ( downloadBtn ) {
 						// in root
 						downloadBtn.click();

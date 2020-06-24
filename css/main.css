@@ -71,7 +71,7 @@
 
 .gitzip-check-mark{
 	position: absolute; 
-	left: -35%;
+    left: -10px;
     top: 0px;
 	font-size: 18px;
 	margin:0 !important;
