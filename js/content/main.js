@@ -41,6 +41,12 @@ function getGitUrl(author, project, type, sha){
 	}else return false;	
 }
 
+function getInfoUrl(author, project, path, branch) {
+	return "https://api.github.com/repos/"
+		 + author + "/" + project + "/contents/"
+		 + path + (branch ? ("?ref=" + branch) : "");
+}
+
 function base64toBlob(base64Data, contentType) {
     contentType = contentType || '';
     var sliceSize = 1024;
@@ -266,14 +272,39 @@ var Pool = {
 			}
 		}
 	},
-	downloadPromiseProcess: function(resolvedUrl, treeAjaxItems, blobAjaxCollection){
+	downloadPromiseProcess: function(resolvedUrl, infoAjaxItems){
 		var self = this,
 			fileContents = [],
 			currentKey = "";
 
+		var treeAjaxItems = [];
+		var blobAjaxCollection = [];
+
 		// start progress
 		self.checkTokenAndScope().then(function(key){
 			currentKey = key || "";
+			var infoUrl = getInfoUrl(resolvedUrl.author, resolvedUrl.project, resolvedUrl.path, resolvedUrl.branch);
+			return callAjax(infoUrl, currentKey).then(function(xmlResponse){
+				var listRes = xmlResponse.response;
+				listRes
+					.filter(function(item){
+						return infoAjaxItems.some(function(info){
+							return info.title == item.name && (
+								(info.type == 'tree' && item.type == 'dir') || 
+								(info.type == 'blob' && item.type == 'file')
+							);
+						});
+					})
+					.forEach(function(item){
+						if(item.type == "dir"){
+							treeAjaxItems.push({ title: item.name, url: item.git_url });
+						}else{
+							blobAjaxCollection.push({ path: item.name, blobUrl: item.git_url });	
+							self.log(item.name + " url fetched.")
+						}	
+					});
+			});
+		}).then(function(){
 			var promises = treeAjaxItems.map(function(item){
 				var fetchedUrl = item.url + "?recursive=1";
 				return callAjax(fetchedUrl, currentKey).then(function(xmlResponse){
@@ -323,27 +354,25 @@ var Pool = {
 
 		self._el.classList.add("gitzip-downloading");
 
-		var treeAjaxItems = [];
-		var blobAjaxCollection = [];
+		var infoAjaxItems = [];
 		var resolvedUrl = resolveUrl(window.location.href);
 		
 		self.log("Collect blob urls...");
 
 		for(var idx = 0, len = items.length; idx < len; idx++){
 			var item = items[idx],
-				sha = item.getAttribute('gitzip-sha'),
 				type = item.getAttribute('gitzip-type'),
 				title = item.getAttribute('gitzip-title'),
-				url = getGitUrl(resolvedUrl.author, resolvedUrl.project, type, sha);
+				href = item.getAttribute('gitzip-href');
 
-			if(type == "tree"){
-				treeAjaxItems.push({ title: title, url: url });
-			}else{
-				blobAjaxCollection.push({ path: title, blobUrl: url });	
-				self.log(title + " url fetched.")
-			}
+			infoAjaxItems.push({
+				type: type,
+				title: title,
+				href: href
+			});
+
 			// ga
-			var looklink = item.closest(".js-navigation-item").querySelector("a[id]");
+			var looklink = item.closest(".js-navigation-item").querySelector("a[href]");
 			if(looklink){
 				var baseRepo = [resolvedUrl.author, resolvedUrl.project].join("/");
 				var githubUrl = looklink.getAttribute("href").substring(1); // ignore slash "/" from begin
@@ -351,7 +380,7 @@ var Pool = {
 			}
 		}
 		
-		self.downloadPromiseProcess(resolvedUrl, treeAjaxItems, blobAjaxCollection);
+		self.downloadPromiseProcess(resolvedUrl, infoAjaxItems);
 	},
 	downloadSingle: function(selectedEl){
 		this.downloadItems( selectedEl.querySelectorAll("p.gitzip-check-mark") );
@@ -425,13 +454,13 @@ var Pool = {
 	}
 };
 
-function createMark(parent, height, title, type, sha){
+function createMark(parent, height, title, type, href){
 	if(parent && !parent.querySelector("p.gitzip-check-mark")){
 		var checkp = document.createElement('p');
 
 		checkp.setAttribute("gitzip-title", title);
 		checkp.setAttribute("gitzip-type", type);
-		checkp.setAttribute("gitzip-sha", sha);
+		checkp.setAttribute("gitzip-href", href);
 		checkp.className = "gitzip-check-mark";
 		checkp.appendChild(document.createTextNode("\u2713"));
 		checkp.style.cssText = "line-height:" + height + "px;";
@@ -494,18 +523,17 @@ function hookItemEvents(){
 		if(itemLen){
 			for(var i = 0; i < itemLen; i++){
 				var item = items[i],
-					link = item.querySelector("a[id]"),
+					link = item.querySelector("a[href]"),
 					blob = item.querySelector(".octicon-file-text, .octicon-file"),
 					tree = item.querySelector(".octicon-file-directory");
 				
 				if(link && (tree || blob)){
 					var title = link.textContent,
-						type = tree? "tree" : "blob",
-						sha = link.id.split('-')[1];
+						type = tree? "tree" : "blob";
 
-					createMark(item, item.offsetHeight, title, type, sha);
+					createMark(item, item.offsetHeight, title, type, link.href);
 					item.addEventListener("dblclick", onItemDblClick);
-					item.addEventListener("mouseenter", generateEnterItemHandler(title, type, sha, link.href) );
+					item.addEventListener("mouseenter", generateEnterItemHandler(title, type, link.href) );
 				}
 			}
 		}
