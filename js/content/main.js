@@ -221,7 +221,7 @@ var Pool = {
 	checkTokenAndScope: function(){
 		var self = this;
 		var checkUrl = "https://api.github.com/rate_limit";
-		var isPrivate = !!document.querySelector(".repohead h1.private");
+		var isPrivate = !!document.querySelector(".flex-auto .octicon-lock");
 
 		return new Promise(function(res, rej){
 			chrome.runtime.sendMessage({action: "getKey"}, function(response){ res(response); });
