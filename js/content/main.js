@@ -529,13 +529,15 @@ function hookItemEvents(){
 					blob = item.querySelector(".octicon-file-text, .octicon-file"),
 					tree = item.querySelector(".octicon-file-directory");
 				
-				if(link && (tree || blob)){
+				if(!item._hasBind && link && (tree || blob)){
 					var title = link.textContent,
 						type = tree? "tree" : "blob";
 
 					createMark(item, item.offsetHeight, title, type, link.href);
 					item.addEventListener("dblclick", onItemDblClick);
 					item.addEventListener("mouseenter", generateEnterItemHandler(title, type, link.href) );
+
+					item._hasBind = true;
 				}
 			}
 		}
@@ -550,7 +552,7 @@ function hookItemEvents(){
 
 	var lazyCaseObserver = null;
 	var repoContent = document.querySelector(".repository-content");
-	var lazyElement = repoContent ? repoContent.querySelector("include-fragment .js-details-container") : null;
+	var lazyElement = repoContent ? repoContent.querySelector(".js-navigation-container") : null;
 
 	if(lazyElement){
 		// lazy case
@@ -559,22 +561,22 @@ function hookItemEvents(){
 			mutations.forEach(function(mutation) {
 				var addNodes = mutation.addedNodes;
 				addNodes && addNodes.length && addNodes.forEach(function(el){
-					if(el.classList && el.classList.contains("js-details-container") && lazyCaseObserver){
+					if(el.classList && (el.classList.contains("js-details-container") || el.classList.contains("js-navigation-container"))){
 						hookMouseLeaveEvent(el);
 						appendToIcons();
-						lazyCaseObserver.disconnect();
-						lazyCaseObserver = null;
+						// lazyCaseObserver.disconnect();
+						// lazyCaseObserver = null;
 					}
 				});
 			});    
 		});
 		lazyCaseObserver.observe(repoContent, { childList: true, subtree: true } );
-	} else {
-		var item;
-		if (item = document.querySelector(itemCollectSelector)) {
-			hookMouseLeaveEvent(item.closest(".js-details-container"));
-			appendToIcons();
-		}
+	} 
+	
+	var item;
+	if (item = document.querySelector(itemCollectSelector)) {
+		hookMouseLeaveEvent(item.closest(".js-navigation-container"));
+		appendToIcons();
 	}
 
 	Pool.init();
