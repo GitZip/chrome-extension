@@ -144,6 +144,8 @@ var Pool = {
 		// Make the dom on right bottom
 		var self = this;
 
+		var isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
 		if(!self._el){
 			var wrap = document.createElement('div'),
 				arrow = document.createElement('div'),
@@ -151,7 +153,7 @@ var Pool = {
 				down = document.createElement('p'),
 				tip = document.createElement('p');
 			
-			wrap.className = "gitzip-collect-wrap";
+			wrap.className = "gitzip-collect-wrap" + (isDark ? " gitzip-dark" : "");
 			dash.className = "gitzip-collect-dash";
 			arrow.className = "gitzip-collect-arrow";
 			down.className = "gitzip-collect-down";
@@ -221,7 +223,7 @@ var Pool = {
 	checkTokenAndScope: function(){
 		var self = this;
 		var checkUrl = "https://api.github.com/rate_limit";
-		var isPrivate = !!document.querySelector(".repohead h1.private");
+		var isPrivate = !!document.querySelector(".flex-auto .octicon-lock");
 
 		return new Promise(function(res, rej){
 			chrome.runtime.sendMessage({action: "getKey"}, function(response){ res(response); });
@@ -527,13 +529,15 @@ function hookItemEvents(){
 					blob = item.querySelector(".octicon-file-text, .octicon-file"),
 					tree = item.querySelector(".octicon-file-directory");
 				
-				if(link && (tree || blob)){
+				if(!item._hasBind && link && (tree || blob)){
 					var title = link.textContent,
 						type = tree? "tree" : "blob";
 
 					createMark(item, item.offsetHeight, title, type, link.href);
 					item.addEventListener("dblclick", onItemDblClick);
 					item.addEventListener("mouseenter", generateEnterItemHandler(title, type, link.href) );
+
+					item._hasBind = true;
 				}
 			}
 		}
@@ -548,7 +552,7 @@ function hookItemEvents(){
 
 	var lazyCaseObserver = null;
 	var repoContent = document.querySelector(".repository-content");
-	var lazyElement = repoContent ? repoContent.querySelector("include-fragment .js-details-container") : null;
+	var lazyElement = repoContent ? repoContent.querySelector(".js-navigation-container") : null;
 
 	if(lazyElement){
 		// lazy case
@@ -557,22 +561,22 @@ function hookItemEvents(){
 			mutations.forEach(function(mutation) {
 				var addNodes = mutation.addedNodes;
 				addNodes && addNodes.length && addNodes.forEach(function(el){
-					if(el.classList && el.classList.contains("js-details-container") && lazyCaseObserver){
+					if(el.classList && (el.classList.contains("js-details-container") || el.classList.contains("js-navigation-container"))){
 						hookMouseLeaveEvent(el);
 						appendToIcons();
-						lazyCaseObserver.disconnect();
-						lazyCaseObserver = null;
+						// lazyCaseObserver.disconnect();
+						// lazyCaseObserver = null;
 					}
 				});
 			});    
 		});
 		lazyCaseObserver.observe(repoContent, { childList: true, subtree: true } );
-	} else {
-		var item;
-		if (item = document.querySelector(itemCollectSelector)) {
-			hookMouseLeaveEvent(item.closest(".js-details-container"));
-			appendToIcons();
-		}
+	} 
+	
+	var item;
+	if (item = document.querySelector(itemCollectSelector)) {
+		hookMouseLeaveEvent(item.closest(".js-navigation-container"));
+		appendToIcons();
 	}
 
 	Pool.init();
