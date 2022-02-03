@@ -5,10 +5,10 @@ function changeIconInDark(tid) {
 	chrome.action.setIcon({
 		tabId: tid,
 		path: {
-			"16": "images/icon-16px-dark.png",
-			"32": "images/icon-32px-dark.png",
-			"48": "images/icon-48px-dark.png",
-			"128": "images/icon-128px-dark.png"
+			"16": "/images/icon-16px-dark.png",
+			"32": "/images/icon-32px-dark.png",
+			"48": "/images/icon-48px-dark.png",
+			"128": "/images/icon-128px-dark.png"
 		}
 	});
 }
@@ -17,7 +17,7 @@ function changeIconInDark(tid) {
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 	switch (request.action){
 		case "showIcon":
-			chrome.action.show(sender.tab.id, function(res){ sendResponse(res); });
+			chrome.action.enable(sender.tab.id, function(res){ sendResponse(res); });
 			return true;
 		case "getKey":
 			chrome.storage.sync.get("gitzip-github-token", function(res){

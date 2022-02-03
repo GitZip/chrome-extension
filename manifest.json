@@ -34,8 +34,7 @@
     ],
 
     "host_permissions": [
-        "https://api.github.com/*",
-        "https://*/*"
+        "https://api.github.com/*"
     ],
 
     "content_scripts": [
