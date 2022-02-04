@@ -84,14 +84,13 @@
 	border-radius: 0px !important;
 }
 
-.gitzip-check-mark{
-	position: absolute; 
-    left: -10px;
+.gitzip-check-wrap{
+	position: absolute;
+    left: -5px;
     top: 0px;
-	font-size: 18px;
-	margin:0 !important;
-	visibility: hidden;
-	opacity: 0;
+    height: 100%;
+    display: none;
+    align-items: center;
 }
 
 .gitzip-collect-wrap{
