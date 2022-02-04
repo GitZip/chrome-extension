@@ -1,17 +1,3 @@
-// const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-const isDark = true;	// for test
-
-function changeIconInDark(tid) {
-	chrome.action.setIcon({
-		tabId: tid,
-		path: {
-			"16": "/images/icon-16px-dark.png",
-			"32": "/images/icon-32px-dark.png",
-			"48": "/images/icon-48px-dark.png",
-			"128": "/images/icon-128px-dark.png"
-		}
-	});
-}
 
 // Received a message from content script
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
@@ -68,13 +54,7 @@ chrome.contextMenus.onClicked.addListener(function(info, tab){
 	}
 });
 
-chrome.tabs.onCreated.addListener(function(tab) {
-	isDark && changeIconInDark(tab.id);
-});
-
 chrome.tabs.onActivated.addListener(function(activeInfo) {
-	isDark && changeIconInDark(activeInfo.tabId);
-
 	// handle other tabs active
     chrome.contextMenus.removeAll();
 
@@ -83,7 +63,6 @@ chrome.tabs.onActivated.addListener(function(activeInfo) {
 });
 
 chrome.tabs.onUpdated.addListener(function(tabId, changeInfo){
-	isDark && changeIconInDark(tabId);
 	if ( changeInfo.status == "loading" ) {
 		chrome.contextMenus.removeAll();
 	} else if ( changeInfo.status == "complete" ) {
