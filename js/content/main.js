@@ -362,7 +362,7 @@ var Pool = {
 		self.log("Collect blob urls...");
 
 		for(var idx = 0, len = items.length; idx < len; idx++){
-			var item = items[idx],
+			var item = items[idx].closest("div.gitzip-check-wrap"),
 				type = item.getAttribute('gitzip-type'),
 				title = item.getAttribute('gitzip-title'),
 				href = item.getAttribute('gitzip-href');
@@ -372,26 +372,18 @@ var Pool = {
 				title: title,
 				href: href
 			});
-
-			// ga
-			var looklink = item.closest(".js-navigation-item").querySelector("a[href]");
-			if(looklink){
-				var baseRepo = [resolvedUrl.author, resolvedUrl.project].join("/");
-				var githubUrl = looklink.getAttribute("href").substring(1); // ignore slash "/" from begin
-				gaTrackMessage(baseRepo, githubUrl);
-			}
 		}
 		
 		self.downloadPromiseProcess(resolvedUrl, infoAjaxItems);
 	},
 	downloadSingle: function(selectedEl){
-		this.downloadItems( selectedEl.querySelectorAll("p.gitzip-check-mark") );
+		this.downloadItems( selectedEl.querySelectorAll("div.gitzip-check-wrap") );
 	},
 	downloadAll: function(){
-		this.downloadItems(document.querySelectorAll(itemCollectSelector + " p.gitzip-check-mark"));
+		this.downloadItems(document.querySelectorAll(itemCollectSelector + " div.gitzip-check-wrap"));
 	},
 	download: function(){
-		this.downloadItems(document.querySelectorAll(itemCollectSelector + " p.gitzip-show"));
+		this.downloadItems(document.querySelectorAll(itemCollectSelector + " div.gitzip-check-wrap input:checked"));
 	},
 	downloadFile: function(resolvedUrl){
 		var self = this;
@@ -457,29 +449,52 @@ var Pool = {
 };
 
 function createMark(parent, height, title, type, href){
-	if(parent && !parent.querySelector("p.gitzip-check-mark")){
-		var checkp = document.createElement('p');
-
-		checkp.setAttribute("gitzip-title", title);
-		checkp.setAttribute("gitzip-type", type);
-		checkp.setAttribute("gitzip-href", href);
-		checkp.className = "gitzip-check-mark";
-		checkp.appendChild(document.createTextNode("\u2713"));
-		checkp.style.cssText = "line-height:" + height + "px;";
+	if (parent && !parent.querySelector("div.gitzip-check-wrap")) {
+		var checkw = document.createElement('div');
+		var cb = document.createElement("input");
 		
-		parent.appendChild(checkp);
+		cb.type = "checkbox";
+
+		checkw.setAttribute("gitzip-title", title);
+		checkw.setAttribute("gitzip-type", type);
+		checkw.setAttribute("gitzip-href", href);
+
+		checkw.className = "gitzip-check-wrap";
+
+		checkw.appendChild(cb);
+		parent.appendChild(checkw);
+
+		cb.addEventListener('change', function(){
+			!!checkHaveAnyCheck()? Pool.show() : Pool.hide();
+		});
 	}
 }
 
 function checkHaveAnyCheck(){
-	var checkItems = document.querySelectorAll(itemCollectSelector + " p.gitzip-show");
+	var checkItems = document.querySelectorAll(itemCollectSelector + " div.gitzip-check-wrap input:checked");
 	return checkItems.length? checkItems : false;
 }
 
 function onItemDblClick(e){
-	var markTarget = e.target.closest(".js-navigation-item").querySelector('p.gitzip-check-mark');
-	if(markTarget) markTarget.classList.toggle("gitzip-show");
-	!!checkHaveAnyCheck()? Pool.show() : Pool.hide();
+	var markTarget = e.target.closest(".js-navigation-item").querySelector('div.gitzip-check-wrap');
+	if(markTarget) {
+		var cb = markTarget.querySelector('input');
+		cb.click();
+	}
+}
+
+function onItemEnter(e) {
+	var markTarget = e.target.closest(".js-navigation-item").querySelector('div.gitzip-check-wrap');
+	if (markTarget && !markTarget.style.display) {
+		markTarget.style.display = "flex";
+	}
+}
+
+function onItemLeave(e) {
+	var markTarget = e.target.closest(".js-navigation-item").querySelector('div.gitzip-check-wrap');
+	if (markTarget && !markTarget.querySelector('input:checked')) {
+		markTarget.style.display = "";
+	}
 }
 
 var currentSelectEl = null;
@@ -536,6 +551,9 @@ function hookItemEvents(){
 					createMark(item, item.offsetHeight, title, type, link.href);
 					item.addEventListener("dblclick", onItemDblClick);
 					item.addEventListener("mouseenter", generateEnterItemHandler(title, type, link.href) );
+
+					item.addEventListener("mouseenter", onItemEnter);
+					item.addEventListener("mouseleave", onItemLeave);
 
 					item._hasBind = true;
 				}
@@ -631,7 +649,7 @@ function hookChromeEvents(){
 					var singleFileNavigation = document.querySelector(".repository-content .breadcrumb .js-repo-root");
 
 					var breadcrumb,
-						downloadBtn = fileNavigation ? fileNavigation.querySelector("get-repo-controller a[href^='/" + baseRepo + "/']") : null;
+						downloadBtn = fileNavigation ? fileNavigation.querySelector("div[data-target='get-repo.modal'] a[href^='/" + baseRepo + "/']") : null;
 
 					if ( fileNavigation && (breadcrumb = fileNavigation.querySelector(".js-repo-root")) ) {
 						// in tree view
