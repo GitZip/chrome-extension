@@ -13,13 +13,10 @@
         "default_popup": "popup.html"
     },
 
-    // "background": {
-    //     "persistent": false,
-    //     "scripts": [
-    //         "js/adgoal.background.bundle.js",
-    //         "js/background.js"
-    //     ]
-    // },
+    "options_ui": {
+        "page": "options.html",
+        "open_in_tab": false
+    },
 
     "background": {
         "service_worker": "js/background.js"
