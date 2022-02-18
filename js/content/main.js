@@ -111,15 +111,6 @@ function callAjax(url, token){
 	});
 }
 
-function gaTrackMessage(baseRepo, githubUrl) {
-	chrome.runtime.sendMessage({
-		action: "gaTrack",
-		baseRepo: baseRepo,
-		githubUrl: githubUrl,
-		userAction: "collected"
-	});
-}
-
 function hasRepoContainer(list) {
 	if ( list && list.length ) {
 		for (var i = 0, len = list.length; i < len; i++) {
@@ -449,7 +440,8 @@ var Pool = {
 };
 
 function createMark(parent, height, title, type, href){
-	if (parent && !parent.querySelector("div.gitzip-check-wrap")) {
+	var target = parent.querySelector("div.gitzip-check-wrap");
+	if (parent && !target) {
 		var checkw = document.createElement('div');
 		var cb = document.createElement("input");
 		
@@ -464,10 +456,9 @@ function createMark(parent, height, title, type, href){
 		checkw.appendChild(cb);
 		parent.appendChild(checkw);
 
-		cb.addEventListener('change', function(){
-			!!checkHaveAnyCheck()? Pool.show() : Pool.hide();
-		});
+		target = checkw;
 	}
+	return target;
 }
 
 function checkHaveAnyCheck(){
@@ -548,7 +539,14 @@ function hookItemEvents(){
 					var title = link.textContent,
 						type = tree? "tree" : "blob";
 
-					createMark(item, item.offsetHeight, title, type, link.href);
+					// reset status if not checked
+					onItemLeave({ target: item });
+					
+					var markTarget = createMark(item, item.offsetHeight, title, type, link.href);
+					markTarget.querySelector("input").addEventListener('change', function(){
+						!!checkHaveAnyCheck()? Pool.show() : Pool.hide();
+					});
+
 					item.addEventListener("dblclick", onItemDblClick);
 					item.addEventListener("mouseenter", generateEnterItemHandler(title, type, link.href) );
 
@@ -579,9 +577,16 @@ function hookItemEvents(){
 			mutations.forEach(function(mutation) {
 				var addNodes = mutation.addedNodes;
 				addNodes && addNodes.length && addNodes.forEach(function(el){
-					if(el.classList && (el.classList.contains("js-details-container") || el.classList.contains("js-navigation-container"))){
-						hookMouseLeaveEvent(el);
+					var foundEl = null;
+					if(el.classList && el.classList.contains("js-navigation-container")){
+						foundEl = el;
+					} else if (el.querySelector && el.parentElement == repoContent) {
+						foundEl = el.querySelector(".js-navigation-container");
+					}
+					if (foundEl) {
+						hookMouseLeaveEvent(foundEl);
 						appendToIcons();
+						Pool.reset();
 						// lazyCaseObserver.disconnect();
 						// lazyCaseObserver = null;
 					}
