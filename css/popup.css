@@ -70,3 +70,31 @@ body{
 	padding: 4px 5px 0px;
 	display: none;
 }
+
+body.dark-theme {
+    color: #f0f6fc;
+    background-color: #000;
+}
+
+.dark-theme .panel-heading {
+    color: #f0f6fc;
+    background-color: #1e2126;
+    border-color: #222;
+}
+
+.dark-theme .panel{
+    background-color: #000;
+}
+
+.dark-theme .form-control{
+    outline: none !important;
+    color: #aaa;
+    background-color: #000;
+    border: 1px solid #222;
+    -webkit-box-shadow: inset 0 1px 1px rgba(255,255,255,.075);
+    box-shadow: inset 0 1px 1px rgba(255,255,255,.075);
+}
+
+.dark-theme .form-control:focus{
+    border: 1px solid #555;
+}
