@@ -16,17 +16,17 @@ chrome.storage.local.get(defaultOptions, function(items){
 	if (items) {
 		if (items.theme == "default") isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 		else isDark = items.theme == "dark";
+		applyTheme();
 	}
-	applyTheme();
 });
 
 chrome.storage.onChanged.addListener(function(changes, area){
 	if (area == "local" && changes.theme) {
 		var newValue = changes.theme.newValue;
-		if (newValue.theme == "default") isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-		else isDark = newValue.theme == "dark";
+		if (newValue == "default") isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+		else isDark = newValue == "dark";
+		applyTheme();
 	}
-	applyTheme();
 });
 
 // The DOMContentLoaded means the popup.html page has load. (trigger this event after click the ext icon)

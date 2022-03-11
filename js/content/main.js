@@ -1,6 +1,15 @@
 // It would work on github.com
 
 var repoExp = new RegExp("^https://github.com/([^/]+)/([^/]+)(/(tree|blob)/([^/]+)(/(.*))?)?");
+
+var isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+const defaultOptions = {
+	selectBehaviour: 'both',
+	theme: 'default',
+	adEnable: true
+};
+
 /**
  * Resolve the github repo url for recognize author, project name, branch name, and so on.
  * @private
@@ -134,8 +143,6 @@ var Pool = {
 		// create dom
 		// Make the dom on right bottom
 		var self = this;
-
-		var isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 
 		if(!self._el){
 			var wrap = document.createElement('div'),
@@ -438,6 +445,30 @@ var Pool = {
 		self._dashBody.scrollTop = self._dashBody.scrollHeight - self._dashBody.clientHeight;
 	}
 };
+
+function applyTheme() {
+	if (Pool._el) {
+		isDark && Pool._el.classList.add("gitzip-dark");
+		!isDark && Pool._el.classList.remove("gitzip-dark");
+	}
+}
+
+chrome.storage.local.get(defaultOptions, function(items){
+	if (items) {
+		if (items.theme == "default") isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+		else isDark = items.theme == "dark";
+		applyTheme();
+	}
+});
+
+chrome.storage.onChanged.addListener(function(changes, area){
+	if (area == "local" && changes.theme) {
+		var newValue = changes.theme.newValue;
+		if (newValue == "default") isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+		else isDark = newValue == "dark";
+		applyTheme();
+	}
+});
 
 function createMark(parent, height, title, type, href){
 	var target = parent.querySelector("div.gitzip-check-wrap");
