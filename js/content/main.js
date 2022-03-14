@@ -527,7 +527,7 @@ function hookItemEvents(){
 				var item = items[i],
 					link = item.querySelector("a[href]"),
 					blob = item.querySelector(".octicon-file-text, .octicon-file"),
-					tree = item.querySelector(".octicon-file-directory");
+					tree = item.querySelector(".octicon-file-directory, .octicon-file-directory-fill");
 				
 				if(!item._hasBind && link && (tree || blob)){
 					var title = link.textContent,
