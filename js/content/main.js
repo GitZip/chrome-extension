@@ -3,6 +3,8 @@ var repoExp = new RegExp("^https://github.com/([^/]+)/([^/]+)(/(tree|blob)/([^/]
 // For the request callback end point detection
 var repoCommitExp = new RegExp("^https://github.com/([^/]+)/([^/]+)/commit/.*");
 
+var isStorageCallback = false;
+
 var isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 
 const defaultOptions = {
@@ -459,6 +461,10 @@ chrome.storage.local.get(defaultOptions, function(items){
 		if (items.theme == "default") isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 		else isDark = items.theme == "dark";
 		applyTheme();
+
+		var callbackEvent = new CustomEvent("storagecallback", {});
+		window.dispatchEvent(callbackEvent);
+		isStorageCallback = true;
 	}
 });
 
@@ -598,17 +604,24 @@ function hookItemEvents(){
 		}
 	}
 
+	function generateWaitStorageHandler(targetEl) {
+		return function(){
+			hookMouseLeaveEvent(targetEl);
+			appendToIcons();
+		};
+	}
+
 	var item;
 	if (item = document.querySelector(itemCollectSelector)) {
-		hookMouseLeaveEvent(item.closest(".js-navigation-container"));
-		appendToIcons();
+		var waitStorageHandler = generateWaitStorageHandler(item.closest(".js-navigation-container"));
+		if (isStorageCallback) waitStorageHandler();
+		else window.addEventListener("storagecallback", waitStorageHandler);
 	}
 
 	window.addEventListener('popstate', (ev) => {
 		var foundEl = document.querySelector(".js-navigation-container");
 		if (foundEl) {
-			hookMouseLeaveEvent(foundEl);
-			appendToIcons();
+			generateWaitStorageHandler(foundEl)();
 			Pool.reset();
 		}
 	});
@@ -618,8 +631,9 @@ function hookItemEvents(){
 		if (entries.some(resource => repoCommitExp.test(resource.name))) {
 			var foundEl = document.querySelector(".js-navigation-container");
 			if (foundEl) {
-				hookMouseLeaveEvent(foundEl);
-				appendToIcons();
+				var waitStorageHandler = generateWaitStorageHandler(foundEl);
+				if (isStorageCallback) waitStorageHandler();
+				else window.addEventListener("storagecallback", waitStorageHandler);
 			}
 		}
 	}
