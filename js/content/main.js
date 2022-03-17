@@ -1,6 +1,8 @@
 // It would work on github.com
-
 var repoExp = new RegExp("^https://github.com/([^/]+)/([^/]+)(/(tree|blob)/([^/]+)(/(.*))?)?");
+// For the request callback end point detection
+var repoCommitExp = new RegExp("^https://github.com/([^/]+)/([^/]+)/commit/.*");
+
 /**
  * Resolve the github repo url for recognize author, project name, branch name, and so on.
  * @private
@@ -566,65 +568,36 @@ function hookItemEvents(){
 		}
 	}
 
-	var lazyCaseObserver = null;
-	var repoContent = document.querySelector(".repository-content");
-	var lazyElement = repoContent ? repoContent.querySelector(".js-navigation-container") : null;
-
-	if(lazyElement){
-		// lazy case
-		// var lazyTarget = document.querySelector(".js-details-container");
-		lazyCaseObserver = new MutationObserver(function(mutations) {
-			mutations.forEach(function(mutation) {
-				var addNodes = mutation.addedNodes;
-				addNodes && addNodes.length && addNodes.forEach(function(el){
-					var foundEl = null;
-					if(el.classList && el.classList.contains("js-navigation-container")){
-						foundEl = el;
-					} else if (el.querySelector && el.parentElement == repoContent) {
-						foundEl = el.querySelector(".js-navigation-container");
-					}
-					if (foundEl) {
-						hookMouseLeaveEvent(foundEl);
-						appendToIcons();
-						Pool.reset();
-						// lazyCaseObserver.disconnect();
-						// lazyCaseObserver = null;
-					}
-				});
-			});    
-		});
-		lazyCaseObserver.observe(repoContent, { childList: true, subtree: true } );
-	} 
-	
 	var item;
 	if (item = document.querySelector(itemCollectSelector)) {
 		hookMouseLeaveEvent(item.closest(".js-navigation-container"));
 		appendToIcons();
 	}
 
-	Pool.init();
-}
-
-// pjax detection
-function hookMutationObserver(){
-	// select the target node
-	var target = document.querySelector("*[data-pjax-container]");
-	
-	// create an observer instance
-	var observer = new MutationObserver(function(mutations) {
-		mutations.forEach(function(mutation) {
-			var addNodes = mutation.addedNodes;
-			if(hasRepoContainer(addNodes)) {
-				hookItemEvents();
-			}
-		});    
+	window.addEventListener('popstate', (ev) => {
+		var foundEl = document.querySelector(".js-navigation-container");
+		if (foundEl) {
+			hookMouseLeaveEvent(foundEl);
+			appendToIcons();
+			Pool.reset();
+		}
 	});
-	 
-	// pass in the target node, as well as the observer options
-	target && observer.observe(target, { childList: true } );
-	 
-	// later, you can stop observing
-	// observer.disconnect();
+
+	function onRequestsObserved( batch ) {
+		var entries = batch.getEntries();
+		if (entries.some(resource => repoCommitExp.test(resource.name))) {
+			var foundEl = document.querySelector(".js-navigation-container");
+			if (foundEl) {
+				hookMouseLeaveEvent(foundEl);
+				appendToIcons();
+			}
+		}
+	}
+
+	var requestObserver = new PerformanceObserver( onRequestsObserved );
+	requestObserver.observe({ type: 'resource' });
+
+	Pool.init();
 }
 
 function hookChromeEvents(){
@@ -674,8 +647,5 @@ function hookChromeEvents(){
 	});
 }
 
-// Property run_at is "document_end" as default in Content Script
-// refers: https://developer.chrome.com/extensions/content_scripts
-hookMutationObserver();
 hookItemEvents();
 hookChromeEvents();
