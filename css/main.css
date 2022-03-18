@@ -97,6 +97,11 @@
 	margin:0 !important;
 	visibility: hidden;
 	opacity: 0;
+	color: #333;
+}
+
+.gitzip-dark.gitzip-check-mark{
+	color: #f0f6fc;
 }
 
 .gitzip-check-wrap{

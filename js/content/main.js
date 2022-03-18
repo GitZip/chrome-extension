@@ -460,6 +460,12 @@ function applyTheme() {
 		isDark && Pool._el.classList.add("gitzip-dark");
 		!isDark && Pool._el.classList.remove("gitzip-dark");
 	}
+	var markers = document.querySelectorAll("p.gitzip-check-mark");
+	var markersLength = markers.length;
+	for(var i = 0; i < markersLength; i++){
+		isDark && markers[i].classList.add("gitzip-dark");
+		!isDark && markers[i].classList.remove("gitzip-dark");
+	}
 }
 
 chrome.storage.local.get(defaultOptions, function(items){
@@ -529,7 +535,7 @@ function createMark(parent, height, title, type, href){
 			checkp.setAttribute("gitzip-title", title);
 			checkp.setAttribute("gitzip-type", type);
 			checkp.setAttribute("gitzip-href", href);
-			checkp.className = "gitzip-check-mark";
+			checkp.className = (isDark ? "gitzip-dark " : "") + "gitzip-check-mark";
 			checkp.appendChild(document.createTextNode("\u2713"));
 			checkp.style.cssText = "line-height:" + height + "px;";
 
