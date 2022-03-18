@@ -631,7 +631,12 @@ function isAvailableView(){
 	return !!document.querySelector("head meta[value=repo_source]") && resolveUrl(window.location.href) !== false;
 }
 
-var checkIfAppendOK = false;
+function isItemsBind() {
+	var items = document.querySelectorAll(itemCollectSelector);
+	var itemLen = items.length;
+	return itemLen ? !!items[itemLen-1]._hasBind : false;
+}
+
 function appendToIcons(isRebind){
 	var items = document.querySelectorAll(itemCollectSelector);
 	var itemLen = items.length;
@@ -670,16 +675,14 @@ function appendToIcons(isRebind){
 				}
 				
 				item._hasBind = true;
-				checkIfAppendOK = true;
 			}
-		}
-		if (!checkIfAppendOK) {
-			setTimeout(function(){ appendToIcons(isRebind); }, 100);
 		}
 	}
 }
 
 function hookItemEvents(){
+
+	var theInterval = null;
 
 	function hookMouseLeaveEvent(bindEl){
 		if ( bindEl && !bindEl._hookLeave ) {
@@ -692,6 +695,19 @@ function hookItemEvents(){
 		return function(){
 			hookMouseLeaveEvent(targetEl);
 			appendToIcons();
+			Pool._el && Pool.reset();
+
+			if (!theInterval) {
+				theInterval = setInterval(function(){
+					var exist = !!document.querySelector(itemCollectSelector);
+					if (!exist || isItemsBind()) {
+						clearInterval(theInterval);
+						theInterval = null;
+					} else {
+						appendToIcons();
+					}
+				}, 100);
+			}
 		};
 	}
 
@@ -706,7 +722,6 @@ function hookItemEvents(){
 		var foundEl = document.querySelector(".js-navigation-container");
 		if (foundEl) {
 			generateWaitStorageHandler(foundEl)();
-			Pool.reset();
 		}
 	});
 
