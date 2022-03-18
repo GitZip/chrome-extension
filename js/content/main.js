@@ -3,6 +3,22 @@ var repoExp = new RegExp("^https://github.com/([^/]+)/([^/]+)(/(tree|blob)/([^/]
 // For the request callback end point detection
 var repoCommitExp = new RegExp("^https://github.com/([^/]+)/([^/]+)/commit/.*");
 
+var isStorageCallback = false;
+
+var isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+// default
+// var selectBehaviour = "both";
+var isOnlyDoubleClick = false;
+var isOnlySingleCheck = false;
+var isBoth = true;
+
+const defaultOptions = {
+	selectBehaviour: 'both',
+	theme: 'default',
+	adEnable: true
+};
+
 /**
  * Resolve the github repo url for recognize author, project name, branch name, and so on.
  * @private
@@ -136,8 +152,6 @@ var Pool = {
 		// create dom
 		// Make the dom on right bottom
 		var self = this;
-
-		var isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 
 		if(!self._el){
 			var wrap = document.createElement('div'),
@@ -355,7 +369,7 @@ var Pool = {
 		self.log("Collect blob urls...");
 
 		for(var idx = 0, len = items.length; idx < len; idx++){
-			var item = items[idx].closest("div.gitzip-check-wrap"),
+			var item = isOnlyDoubleClick ? items[idx] : items[idx].closest("div.gitzip-check-wrap"),
 				type = item.getAttribute('gitzip-type'),
 				title = item.getAttribute('gitzip-title'),
 				href = item.getAttribute('gitzip-href');
@@ -370,13 +384,13 @@ var Pool = {
 		self.downloadPromiseProcess(resolvedUrl, infoAjaxItems);
 	},
 	downloadSingle: function(selectedEl){
-		this.downloadItems( selectedEl.querySelectorAll("div.gitzip-check-wrap") );
+		this.downloadItems( selectedEl.querySelectorAll(isOnlyDoubleClick ? "p.gitzip-check-mark" : "div.gitzip-check-wrap") );
 	},
 	downloadAll: function(){
-		this.downloadItems(document.querySelectorAll(itemCollectSelector + " div.gitzip-check-wrap"));
+		this.downloadItems(document.querySelectorAll(itemCollectSelector + (isOnlyDoubleClick ? " p.gitzip-check-mark" : " div.gitzip-check-wrap") ));
 	},
 	download: function(){
-		this.downloadItems(document.querySelectorAll(itemCollectSelector + " div.gitzip-check-wrap input:checked"));
+		this.downloadItems(document.querySelectorAll(itemCollectSelector + (isOnlyDoubleClick ? " p.gitzip-show" : " div.gitzip-check-wrap input:checked") ));
 	},
 	downloadFile: function(resolvedUrl){
 		var self = this;
@@ -441,38 +455,130 @@ var Pool = {
 	}
 };
 
+function applyTheme() {
+	if (Pool._el) {
+		isDark && Pool._el.classList.add("gitzip-dark");
+		!isDark && Pool._el.classList.remove("gitzip-dark");
+	}
+	var markers = document.querySelectorAll("p.gitzip-check-mark");
+	var markersLength = markers.length;
+	for(var i = 0; i < markersLength; i++){
+		isDark && markers[i].classList.add("gitzip-dark");
+		!isDark && markers[i].classList.remove("gitzip-dark");
+	}
+}
+
+chrome.storage.local.get(defaultOptions, function(items){
+	if (items) {
+		if (items.theme == "default") isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+		else isDark = items.theme == "dark";
+		applyTheme();
+
+		isOnlyDoubleClick = items.selectBehaviour == "double-click";
+		isOnlySingleCheck = items.selectBehaviour == "single-check";
+		isBoth = items.selectBehaviour == "both";
+
+		isStorageCallback = true;
+		var callbackEvent = new CustomEvent("storagecallback", {});
+		window.dispatchEvent(callbackEvent);
+	}
+});
+
+chrome.storage.onChanged.addListener(function(changes, area){
+	if (area == "local") {
+		if (changes.theme) {
+			var newValue = changes.theme.newValue;
+			if (newValue == "default") isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+			else isDark = newValue == "dark";
+			applyTheme();
+		}
+
+		if (changes.selectBehaviour) {
+			var newValue = changes.selectBehaviour.newValue;
+
+			isOnlyDoubleClick = newValue == "double-click";
+			isOnlySingleCheck = newValue == "single-check";
+			isBoth = newValue == "both";
+
+			// rebind
+			var items = document.querySelectorAll(itemCollectSelector);
+			var itemLen = items.length;
+			if(itemLen){
+				for(var i = 0; i < itemLen; i++){
+					var item = items[i];
+					// reset
+					item._hasBind = false;
+
+					// remove events
+					item.removeEventListener("dblclick", onItemDblClick);
+					item.removeEventListener("mouseenter", onItemEnter);
+					item.removeEventListener("mouseleave", onItemLeave);
+
+					// remove custom markers
+					var toRemoveMark = item.querySelector("p.gitzip-check-mark");
+					var toRemoveWrap = item.querySelector("div.gitzip-check-wrap");
+					toRemoveMark && toRemoveMark.remove();
+					toRemoveWrap && toRemoveWrap.remove();
+				}
+			}
+			appendToIcons(true);
+		}
+	}
+});
+
 function createMark(parent, height, title, type, href){
-	var target = parent.querySelector("div.gitzip-check-wrap");
+	var target = parent.querySelector(isOnlyDoubleClick ? "p.gitzip-check-mark" : "div.gitzip-check-wrap");
 	if (parent && !target) {
-		var checkw = document.createElement('div');
-		var cb = document.createElement("input");
-		
-		cb.type = "checkbox";
+		if (isOnlyDoubleClick) {
+			var checkp = document.createElement('p');
 
-		checkw.setAttribute("gitzip-title", title);
-		checkw.setAttribute("gitzip-type", type);
-		checkw.setAttribute("gitzip-href", href);
+			checkp.setAttribute("gitzip-title", title);
+			checkp.setAttribute("gitzip-type", type);
+			checkp.setAttribute("gitzip-href", href);
+			checkp.className = (isDark ? "gitzip-dark " : "") + "gitzip-check-mark";
+			checkp.appendChild(document.createTextNode("\u2713"));
+			checkp.style.cssText = "line-height:" + height + "px;";
 
-		checkw.className = "gitzip-check-wrap";
+			parent.appendChild(checkp);
 
-		checkw.appendChild(cb);
-		parent.appendChild(checkw);
+			target = checkp;
+		} else {
+			var checkw = document.createElement('div');
+			var cb = document.createElement("input");
+			
+			cb.type = "checkbox";
 
-		target = checkw;
+			checkw.setAttribute("gitzip-title", title);
+			checkw.setAttribute("gitzip-type", type);
+			checkw.setAttribute("gitzip-href", href);
+
+			checkw.className = "gitzip-check-wrap";
+
+			checkw.appendChild(cb);
+			parent.appendChild(checkw);
+
+			target = checkw;
+		}
 	}
 	return target;
 }
 
 function checkHaveAnyCheck(){
-	var checkItems = document.querySelectorAll(itemCollectSelector + " div.gitzip-check-wrap input:checked");
+	var checkItems = document.querySelectorAll(itemCollectSelector + (isOnlyDoubleClick ? " p.gitzip-show" : " div.gitzip-check-wrap input:checked") );
 	return checkItems.length? checkItems : false;
 }
 
 function onItemDblClick(e){
-	var markTarget = e.target.closest(".js-navigation-item").querySelector('div.gitzip-check-wrap');
-	if(markTarget) {
-		var cb = markTarget.querySelector('input');
-		cb.click();
+	if (isBoth) {
+		var markTarget = e.target.closest(".js-navigation-item").querySelector('div.gitzip-check-wrap');
+		if(markTarget) {
+			var cb = markTarget.querySelector('input');
+			cb.click();
+		}	
+	} else if (isOnlyDoubleClick) {
+		var markTarget = e.target.closest(".js-navigation-item").querySelector('p.gitzip-check-mark');
+		if(markTarget) markTarget.classList.toggle("gitzip-show");
+		!!checkHaveAnyCheck()? Pool.show() : Pool.hide();
 	}
 }
 
@@ -525,41 +631,55 @@ function isAvailableView(){
 	return !!document.querySelector("head meta[value=repo_source]") && resolveUrl(window.location.href) !== false;
 }
 
-function hookItemEvents(){
+var checkIfAppendOK = false;
+function appendToIcons(isRebind){
+	var items = document.querySelectorAll(itemCollectSelector);
+	var itemLen = items.length;
+	if(itemLen){
+		for(var i = 0; i < itemLen; i++){
+			var item = items[i],
+				link = item.querySelector("a[href]"),
+				blob = item.querySelector(".octicon-file-text, .octicon-file"),
+				tree = item.querySelector(".octicon-file-directory, .octicon-file-directory-fill");
+			
+			if(!item._hasBind && link && (tree || blob)){
+				var title = link.textContent,
+					type = tree? "tree" : "blob";
 
-	function appendToIcons(){
-		var items = document.querySelectorAll(itemCollectSelector);
-		var itemLen = items.length;
-		if(itemLen){
-			for(var i = 0; i < itemLen; i++){
-				var item = items[i],
-					link = item.querySelector("a[href]"),
-					blob = item.querySelector(".octicon-file-text, .octicon-file"),
-					tree = item.querySelector(".octicon-file-directory, .octicon-file-directory-fill");
-				
-				if(!item._hasBind && link && (tree || blob)){
-					var title = link.textContent,
-						type = tree? "tree" : "blob";
-
+				if (isBoth || isOnlySingleCheck) { 
 					// reset status if not checked
 					onItemLeave({ target: item });
-					
-					var markTarget = createMark(item, item.offsetHeight, title, type, link.href);
+				}
+				
+				var markTarget = createMark(item, item.offsetHeight, title, type, link.href);
+				if (isBoth || isOnlySingleCheck) {
 					markTarget.querySelector("input").addEventListener('change', function(){
 						!!checkHaveAnyCheck()? Pool.show() : Pool.hide();
-					});
+					});	
+				}
 
-					item.addEventListener("dblclick", onItemDblClick);
-					item.addEventListener("mouseenter", generateEnterItemHandler(title, type, link.href) );
+				if (isBoth || isOnlyDoubleClick) {
+					item.addEventListener("dblclick", onItemDblClick);	
+				}
+				
+				isRebind !== true && item.addEventListener("mouseenter", generateEnterItemHandler(title, type, link.href) );
 
+				if (isBoth || isOnlySingleCheck) {
 					item.addEventListener("mouseenter", onItemEnter);
 					item.addEventListener("mouseleave", onItemLeave);
-
-					item._hasBind = true;
 				}
+				
+				item._hasBind = true;
+				checkIfAppendOK = true;
 			}
 		}
+		if (!checkIfAppendOK) {
+			setTimeout(function(){ appendToIcons(isRebind); }, 100);
+		}
 	}
+}
+
+function hookItemEvents(){
 
 	function hookMouseLeaveEvent(bindEl){
 		if ( bindEl && !bindEl._hookLeave ) {
@@ -568,17 +688,24 @@ function hookItemEvents(){
 		}
 	}
 
+	function generateWaitStorageHandler(targetEl) {
+		return function(){
+			hookMouseLeaveEvent(targetEl);
+			appendToIcons();
+		};
+	}
+
 	var item;
 	if (item = document.querySelector(itemCollectSelector)) {
-		hookMouseLeaveEvent(item.closest(".js-navigation-container"));
-		appendToIcons();
+		var waitStorageHandler = generateWaitStorageHandler(item.closest(".js-navigation-container"));
+		if (isStorageCallback) waitStorageHandler();
+		else window.addEventListener("storagecallback", waitStorageHandler);
 	}
 
 	window.addEventListener('popstate', (ev) => {
 		var foundEl = document.querySelector(".js-navigation-container");
 		if (foundEl) {
-			hookMouseLeaveEvent(foundEl);
-			appendToIcons();
+			generateWaitStorageHandler(foundEl)();
 			Pool.reset();
 		}
 	});
@@ -588,8 +715,9 @@ function hookItemEvents(){
 		if (entries.some(resource => repoCommitExp.test(resource.name))) {
 			var foundEl = document.querySelector(".js-navigation-container");
 			if (foundEl) {
-				hookMouseLeaveEvent(foundEl);
-				appendToIcons();
+				var waitStorageHandler = generateWaitStorageHandler(foundEl);
+				if (isStorageCallback) waitStorageHandler();
+				else window.addEventListener("storagecallback", waitStorageHandler);
 			}
 		}
 	}

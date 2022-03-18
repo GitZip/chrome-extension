@@ -1,10 +1,41 @@
+
+let isDark = true;
+
+const defaultOptions = {
+	selectBehaviour: 'both',
+	theme: 'default',
+	adEnable: true
+};
+
+function applyTheme() {
+	isDark && document.body.classList.add("dark-theme");
+	!isDark && document.body.classList.remove("dark-theme");
+}
+
+chrome.storage.local.get(defaultOptions, function(items){
+	if (items) {
+		if (items.theme == "default") isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+		else isDark = items.theme == "dark";
+		applyTheme();
+	}
+});
+
+chrome.storage.onChanged.addListener(function(changes, area){
+	if (area == "local" && changes.theme) {
+		var newValue = changes.theme.newValue;
+		if (newValue == "default") isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+		else isDark = newValue == "dark";
+		applyTheme();
+	}
+});
+
 // The DOMContentLoaded means the popup.html page has load. (trigger this event after click the ext icon)
 document.addEventListener('DOMContentLoaded', function() {
 	// alert("has loaded");
-
 	var form = document.getElementById('tokenForm');
 	var input = document.getElementById('tokenInput');
 	var tokenlinks = form.querySelectorAll('.gettoken-link');
+	var optionlink = form.querySelector('.option-link');
 	var tip = form.querySelector('.tip-left');
 	var referrer = "";
 	form.addEventListener('submit', function(){
@@ -35,7 +66,11 @@ document.addEventListener('DOMContentLoaded', function() {
 			tokenlinks.forEach(function(link){
 				link.addEventListener('click', onTokenLinkClick);
 			});
+			optionlink.addEventListener('click', function(){
+				chrome.runtime.openOptionsPage();
+			});
 		}
 	});
 
+	applyTheme();
 }, false);
