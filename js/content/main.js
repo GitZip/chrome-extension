@@ -15,8 +15,7 @@ var isBoth = true;
 
 const defaultOptions = {
 	selectBehaviour: 'both',
-	theme: 'default',
-	adEnable: true
+	theme: 'default'
 };
 
 /**
