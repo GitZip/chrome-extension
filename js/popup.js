@@ -3,8 +3,7 @@ let isDark = true;
 
 const defaultOptions = {
 	selectBehaviour: 'both',
-	theme: 'default',
-	adEnable: true
+	theme: 'default'
 };
 
 function applyTheme() {
@@ -35,7 +34,6 @@ document.addEventListener('DOMContentLoaded', function() {
 	var form = document.getElementById('tokenForm');
 	var input = document.getElementById('tokenInput');
 	var tokenlinks = form.querySelectorAll('.gettoken-link');
-	var optionlink = form.querySelector('.option-link');
 	var tip = form.querySelector('.tip-left');
 	var referrer = "";
 	form.addEventListener('submit', function(){
@@ -65,9 +63,6 @@ document.addEventListener('DOMContentLoaded', function() {
 			}
 			tokenlinks.forEach(function(link){
 				link.addEventListener('click', onTokenLinkClick);
-			});
-			optionlink.addEventListener('click', function(){
-				chrome.runtime.openOptionsPage();
 			});
 		}
 	});
