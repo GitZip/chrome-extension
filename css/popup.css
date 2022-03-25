@@ -18,13 +18,14 @@ body{
     font-size: 14px;
     line-height: 1.42857143;
     color: #333;
+    margin: 5px;
+    background-color: #f5f5f5;
 }
 
 .panel{
 	width: 400px;
 	height: 130px;
 	background-color: #fff;
-    border: 1px solid transparent;
     border-radius: 4px;
 }
 
@@ -73,7 +74,7 @@ body{
 
 body.dark-theme {
     color: #f0f6fc;
-    background-color: #000;
+    background-color: #1e2126;
 }
 
 .dark-theme .panel-heading {
