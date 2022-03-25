@@ -297,7 +297,7 @@ var Pool = {
 				listRes
 					.filter(function(item){
 						return infoAjaxItems.some(function(info){
-							return info.title == item.name && (
+							return (info.title === item.name || info.alias === item.name) && (
 								(info.type == 'tree' && item.type == 'dir') || 
 								(info.type == 'blob' && item.type == 'file')
 							);
@@ -373,11 +373,15 @@ var Pool = {
 				title = item.getAttribute('gitzip-title'),
 				href = item.getAttribute('gitzip-href');
 
-			infoAjaxItems.push({
+			var itemInfo = {
 				type: type,
 				title: title,
 				href: href
-			});
+			}, titleSplits;
+
+			if ( (titleSplits = title.split("/")).length > 1 ) itemInfo.alias = titleSplits[0];
+
+			infoAjaxItems.push(itemInfo);
 		}
 		
 		self.downloadPromiseProcess(resolvedUrl, infoAjaxItems);
