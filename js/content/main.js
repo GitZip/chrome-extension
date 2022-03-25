@@ -140,7 +140,7 @@ function hasRepoContainer(list) {
 	return false;
 }
 
-var itemCollectSelector = ".repository-content .js-navigation-item";
+var itemCollectSelector = ".repository-content div.js-navigation-item";
 
 var Pool = {
 	_locked: false,
@@ -727,49 +727,39 @@ function appendToIcons(isRebind){
 	}
 }
 
+function isAnyItemExist() {
+	return !!document.querySelector(itemCollectSelector);
+}
+
 function hookItemEvents(){
 
 	var theInterval = null;
 
-	// function hookMouseLeaveEvent(bindEl){
-	// 	if ( bindEl && !bindEl._hookLeave ) {
-	// 		bindEl.addEventListener("mouseleave", restoreContextStatus);
-	// 		bindEl._hookLeave = true;
-	// 	}
-	// }
+	function waitStorageHandler() {
+		appendToIcons();
+		Pool._el && Pool.reset();
+		currentSelectEl = cacheSelectEl = null;
 
-	function generateWaitStorageHandler(targetEl) {
-		return function(){
-			// hookMouseLeaveEvent(targetEl);
-			appendToIcons();
-			Pool._el && Pool.reset();
-			currentSelectEl = cacheSelectEl = null;
-
-			if (!theInterval) {
-				theInterval = setInterval(function(){
-					var exist = !!document.querySelector(itemCollectSelector);
-					if (!exist || isItemsBind()) {
-						clearInterval(theInterval);
-						theInterval = null;
-					} else {
-						appendToIcons();
-					}
-				}, 100);
-			}
-		};
+		if (!theInterval) {
+			theInterval = setInterval(function(){
+				if (!isAnyItemExist() || isItemsBind()) {
+					clearInterval(theInterval);
+					theInterval = null;
+				} else {
+					appendToIcons();
+				}
+			}, 100);
+		}
 	}
 
-	var item;
-	if (item = document.querySelector(itemCollectSelector)) {
-		var waitStorageHandler = generateWaitStorageHandler(item.closest(".js-navigation-container"));
+	if (isAnyItemExist()) {
 		if (isStorageCallback) waitStorageHandler();
 		else window.addEventListener("storagecallback", waitStorageHandler);
 	}
 
 	window.addEventListener('popstate', (ev) => {
-		var foundEl = document.querySelector(".js-navigation-container");
-		if (foundEl) {
-			generateWaitStorageHandler(foundEl)();
+		if (isAnyItemExist()) {
+			waitStorageHandler();
 		}
 	});
 
@@ -779,13 +769,9 @@ function hookItemEvents(){
 
 	function onRequestsObserved( batch ) {
 		var entries = batch.getEntries();
-		if (entries.some(resource => repoCommitExp.test(resource.name))) {
-			var foundEl = document.querySelector(".js-navigation-container");
-			if (foundEl) {
-				var waitStorageHandler = generateWaitStorageHandler(foundEl);
-				if (isStorageCallback) waitStorageHandler();
-				else window.addEventListener("storagecallback", waitStorageHandler);
-			}
+		if (entries.some(resource => repoCommitExp.test(resource.name)) && isAnyItemExist()) {
+			if (isStorageCallback) waitStorageHandler();
+			else window.addEventListener("storagecallback", waitStorageHandler);
 		}
 	}
 
