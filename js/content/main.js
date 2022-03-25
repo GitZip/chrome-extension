@@ -596,16 +596,18 @@ function onItemLeave(e) {
 	}
 }
 
+var cacheSelectEl = null;
 var currentSelectEl = null;
 function generateEnterItemHandler(title, type){
 	return function(){
-		var self = this;
-		applySelectedContext(self, title, type);
+		applySelectedContext(title, type);
+		cacheSelectEl = this;
 	}
 }
 
 function leaveItemHandler() {
 	applySelectedContext();
+	cacheSelectEl = null;
 }
 
 function applyItemsContext() {
@@ -616,8 +618,8 @@ function applyItemsContext() {
 	});
 }
 
-function applySelectedContext(el, name, type) {
-	var enabled = !!el;
+function applySelectedContext(name, type) {
+	var enabled = !!name && !!type;
 	chrome.runtime.sendMessage({
 		action: "updateContextNested",
 		urlName: name,
@@ -625,7 +627,6 @@ function applySelectedContext(el, name, type) {
 		enabled: enabled,
 		target: "selected"
 	});
-	currentSelectEl = enabled ? el : null;
 }
 
 function applyCurrentContext(name, type) {
@@ -738,6 +739,7 @@ function hookItemEvents(){
 			// hookMouseLeaveEvent(targetEl);
 			appendToIcons();
 			Pool._el && Pool.reset();
+			currentSelectEl = cacheSelectEl = null;
 
 			if (!theInterval) {
 				theInterval = setInterval(function(){
@@ -766,6 +768,10 @@ function hookItemEvents(){
 			generateWaitStorageHandler(foundEl)();
 		}
 	});
+
+	window.addEventListener('contextmenu', (ev) => {
+		currentSelectEl = cacheSelectEl;
+	})
 
 	function onRequestsObserved( batch ) {
 		var entries = batch.getEntries();
@@ -801,31 +807,33 @@ function hookChromeEvents(){
 					chrome.runtime.sendMessage({action: "removeContext"});
 				}
 				return true;
-			case "gitzip-single-clicked":
-				if ( currentSelectEl ) {
-					Pool.downloadSingle(currentSelectEl);
+			case "gitzip-nested-items-clicked":
+				Pool.download();
+				return true;
+			case "gitzip-nested-selected-clicked":
+				Pool.downloadSingle(currentSelectEl);
+				return true;
+			case "gitzip-nested-current-clicked":
+				var resolvedUrl = resolveUrl(window.location.href);
+				var baseRepo = [resolvedUrl.author, resolvedUrl.project].join("/");
+
+				var fileNavigation = document.querySelector(".repository-content .file-navigation");
+				var singleFileNavigation = document.querySelector(".repository-content .breadcrumb .js-repo-root");
+
+				var breadcrumb,
+					downloadBtn = fileNavigation ? fileNavigation.querySelector("div[data-target='get-repo.modal'] a[href^='/" + baseRepo + "/']") : null;
+
+				if ( fileNavigation && (breadcrumb = fileNavigation.querySelector(".js-repo-root")) ) {
+					// in tree view
+					Pool.downloadAll();
+				} else if ( singleFileNavigation ) {
+					// in file view
+					Pool.downloadFile(resolvedUrl);
+				} else if ( downloadBtn ) {
+					// in root
+					downloadBtn.click();
 				} else {
-					var resolvedUrl = resolveUrl(window.location.href);
-					var baseRepo = [resolvedUrl.author, resolvedUrl.project].join("/");
-
-					var fileNavigation = document.querySelector(".repository-content .file-navigation");
-					var singleFileNavigation = document.querySelector(".repository-content .breadcrumb .js-repo-root");
-
-					var breadcrumb,
-						downloadBtn = fileNavigation ? fileNavigation.querySelector("div[data-target='get-repo.modal'] a[href^='/" + baseRepo + "/']") : null;
-
-					if ( fileNavigation && (breadcrumb = fileNavigation.querySelector(".js-repo-root")) ) {
-						// in tree view
-						Pool.downloadAll();
-					} else if ( singleFileNavigation ) {
-						// in file view
-						Pool.downloadFile(resolvedUrl);
-					} else if ( downloadBtn ) {
-						// in root
-						downloadBtn.click();
-					} else {
-						alert("Unknown Operation");
-					}
+					alert("Unknown Operation");
 				}
 				return true;
 		}
