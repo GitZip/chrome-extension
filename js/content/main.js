@@ -218,7 +218,7 @@ var Pool = {
 	hide: function(){ this._arrow && this._arrow.classList.remove("gitzip-show"); },
 	reset: function(){
 		var self = this;
-		!!checkHaveAnyCheck()? self.show() : self.hide();
+		checkHaveAnyCheck()? self.show() : self.hide();
 		self._el.classList.remove("gitzip-downloading");
 		self._el.classList.remove("gitzip-fail");
 		while (self._dashBody.firstChild) {
@@ -564,7 +564,7 @@ function createMark(parent, height, title, type, href){
 
 function checkHaveAnyCheck(){
 	var checkItems = document.querySelectorAll(itemCollectSelector + (isOnlyDoubleClick ? " p.gitzip-show" : " div.gitzip-check-wrap input:checked") );
-	return checkItems.length? checkItems : false;
+	return checkItems.length > 0;
 }
 
 function onItemDblClick(e){
@@ -577,7 +577,8 @@ function onItemDblClick(e){
 	} else if (isOnlyDoubleClick) {
 		var markTarget = e.target.closest(".js-navigation-item").querySelector('p.gitzip-check-mark');
 		if(markTarget) markTarget.classList.toggle("gitzip-show");
-		!!checkHaveAnyCheck()? Pool.show() : Pool.hide();
+		checkHaveAnyCheck()? Pool.show() : Pool.hide();
+		applyItemsContext();
 	}
 }
 
@@ -599,30 +600,68 @@ var currentSelectEl = null;
 function generateEnterItemHandler(title, type){
 	return function(){
 		var self = this;
-		chrome.runtime.sendMessage({action: "updateContextSingle", urlName: title, urlType: type}, function(response) {
-			currentSelectEl = self;
-		});
+		applySelectedContext(self, title, type);
 	}
+}
+
+function leaveItemHandler() {
+	applySelectedContext();
+}
+
+function applyItemsContext() {
+	chrome.runtime.sendMessage({
+		action: "updateContextNested",
+		target: "items",
+		enabled: checkHaveAnyCheck()
+	});
+}
+
+function applySelectedContext(el, name, type) {
+	var enabled = !!el;
+	chrome.runtime.sendMessage({
+		action: "updateContextNested",
+		urlName: name,
+		urlType: type,
+		enabled: enabled,
+		target: "selected"
+	});
+	currentSelectEl = enabled ? el : null;
+}
+
+function applyCurrentContext(name, type) {
+	chrome.runtime.sendMessage({
+		action: "updateContextNested",
+		urlName: name,
+		urlType: type,
+		root: !name && !type,
+		target: "current"
+	});
 }
 
 function restoreContextStatus(){
 	var resolvedUrl = resolveUrl(window.location.href);
+	var baseRepo = [resolvedUrl.author, resolvedUrl.project].join("/");
 	var fileNavigation = document.querySelector(".repository-content .file-navigation");
 	var singleFileNavigation = document.querySelector(".repository-content .breadcrumb .js-repo-root");
-	var breadcrumb, pathText, urlType = "";
+	var downloadBtn = fileNavigation ? fileNavigation.querySelector("div[data-target='get-repo.modal'] a[href^='/" + baseRepo + "/']") : null;
+	var pathText = resolvedUrl.path.split('/').pop();
+	var urlType = resolvedUrl.type;
+	var breadcrumb;
 
 	if ( fileNavigation && (breadcrumb = fileNavigation.querySelector(".js-repo-root")) ) {
 		// in tree view
-		pathText = resolvedUrl.path.split('/').pop();
-		urlType = resolvedUrl.type;
+		applyCurrentContext(pathText, urlType);
 	} else if ( singleFileNavigation ) {
 		// in file view
-		pathText = resolvedUrl.path.split('/').pop();
-		urlType = resolvedUrl.type;
-	} 
-	chrome.runtime.sendMessage({action: "updateContextSingle", urlName: pathText, urlType: urlType}, function(response) {
-		currentSelectEl = null;
-	});
+		applyCurrentContext(pathText, urlType);
+		applySelectedContext();
+	} else if (downloadBtn) {
+		// in root
+		applyCurrentContext();
+	}
+
+	// the checked items
+	applyItemsContext();
 }
 
 // Check is in available view
@@ -658,7 +697,8 @@ function appendToIcons(isRebind){
 				var markTarget = createMark(item, item.offsetHeight, title, type, link.href);
 				if (isBoth || isOnlySingleCheck) {
 					markTarget.querySelector("input").addEventListener('change', function(){
-						!!checkHaveAnyCheck()? Pool.show() : Pool.hide();
+						checkHaveAnyCheck()? Pool.show() : Pool.hide();
+						applyItemsContext();
 					});	
 				}
 
@@ -666,7 +706,10 @@ function appendToIcons(isRebind){
 					item.addEventListener("dblclick", onItemDblClick);	
 				}
 				
-				isRebind !== true && item.addEventListener("mouseenter", generateEnterItemHandler(title, type, link.href) );
+				if (isRebind !== true) {
+					item.addEventListener("mouseenter", generateEnterItemHandler(title, type, link.href) );
+					item.addEventListener("mouseleave", leaveItemHandler);
+				}
 
 				if (isBoth || isOnlySingleCheck) {
 					item.addEventListener("mouseenter", onItemEnter);
@@ -683,16 +726,16 @@ function hookItemEvents(){
 
 	var theInterval = null;
 
-	function hookMouseLeaveEvent(bindEl){
-		if ( bindEl && !bindEl._hookLeave ) {
-			bindEl.addEventListener("mouseleave", restoreContextStatus);
-			bindEl._hookLeave = true;
-		}
-	}
+	// function hookMouseLeaveEvent(bindEl){
+	// 	if ( bindEl && !bindEl._hookLeave ) {
+	// 		bindEl.addEventListener("mouseleave", restoreContextStatus);
+	// 		bindEl._hookLeave = true;
+	// 	}
+	// }
 
 	function generateWaitStorageHandler(targetEl) {
 		return function(){
-			hookMouseLeaveEvent(targetEl);
+			// hookMouseLeaveEvent(targetEl);
 			appendToIcons();
 			Pool._el && Pool.reset();
 
@@ -752,7 +795,7 @@ function hookChromeEvents(){
 				// from the background event
 				// means tab active changed.
 				if ( isAvailableView() ) {
-					chrome.runtime.sendMessage({action: "createContextSingle"});
+					chrome.runtime.sendMessage({action: "createContextNested"});
 					restoreContextStatus();
 				} else {
 					chrome.runtime.sendMessage({action: "removeContext"});

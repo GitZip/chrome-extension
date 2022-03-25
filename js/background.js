@@ -23,24 +23,56 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 				});
 			});
 			return true;
-		case "createContextSingle":
+		case "createContextNested":
+			var main = chrome.contextMenus.create({
+				id: "gitzip-nested",
+				title: "GitZip",
+				contexts: ["all"]
+			});
 			chrome.contextMenus.create({
-				id: "gitzip-single",
-				title: "Download Zip"
+				id: "gitzip-nested-items",
+				parentId: main,
+				title: "Checked Items",
+				contexts: ["all"],
+				enabled: false
+			});
+			chrome.contextMenus.create({
+				id: "gitzip-nested-seperator",
+				parentId: main,
+				title: "seperator",
+				type: "separator",
+				contexts: ["all"]
+			});
+			chrome.contextMenus.create({
+				id: "gitzip-nested-selected",
+				parentId: main,
+				title: "(selected)",
+				contexts: ["all"],
+				enabled: false
+			});
+			chrome.contextMenus.create({
+				id: "gitzip-nested-current",
+				parentId: main,
+				title: "(current)",
+				contexts: ["all"],
+				enabled: false
 			});
 			return true;
-		case "updateContextSingle":
-			var updateObj = {};
-			if ( request.urlType == "blob" ) {
-				updateObj.title = "Download「" + request.urlName + "」";
-			} else if ( request.urlType == "tree" ) {
-				updateObj.title = "Download「" + request.urlName + "」as Zip";
-			} else {
-				updateObj.title = "Download Zip";
+		case "updateContextNested":
+			var id = request.target;
+			var updateObj = { enabled: request.enabled !== false };
+			switch (id) {
+				case "selected":
+					updateObj.title = updateObj.enabled ? ((request.urlType == "blob" ? "File - " : "Folder - ") + request.urlName) : "(selected)";
+					break;
+				case "current":
+					if (request.root === true) 
+						updateObj.title = "Whole Repository";
+					else 
+						updateObj.title = updateObj.enabled ? ((request.urlType == "blob" ? "File - " : "Folder - ") + request.urlName) : "(current)";
+					break;
 			}
-			chrome.contextMenus.update("gitzip-single", updateObj, function(res){
-				sendResponse(updateObj);
-			});
+			chrome.contextMenus.update("gitzip-nested-" + id, updateObj);
 			return true;
 		case "removeContext": 
 			chrome.contextMenus.removeAll(function(res){ sendResponse(res); });
