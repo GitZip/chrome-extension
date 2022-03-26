@@ -87,6 +87,9 @@ chrome.contextMenus.onClicked.addListener(function(info, tab){
 });
 
 chrome.tabs.onActivated.addListener(function(activeInfo) {
+	// disable first
+	chrome.action.disable(activeInfo.tabId);
+
 	// handle other tabs active
     chrome.contextMenus.removeAll();
 

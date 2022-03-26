@@ -38,10 +38,6 @@
             "css": ["css/main.css"]
         },
         {
-            "matches": ["*://github.com/*", "*://gitzip.org/*"],
-            "js": ["js/content/show.js"]
-        },
-        {
             "matches": ["*://kinolien.github.io/gitzip/*"],
             "js": ["js/content/keysync.js"]
         },
