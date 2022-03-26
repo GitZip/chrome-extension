@@ -790,6 +790,8 @@ function hookChromeEvents(){
 			case "github-tab-active":
 				// from the background event
 				// means tab active changed.
+				// if it is in github.com now
+				chrome.runtime.sendMessage({action: "showIcon"}, function(response) {});
 				if ( isAvailableView() ) {
 					chrome.runtime.sendMessage({action: "createContextNested"});
 					restoreContextStatus();

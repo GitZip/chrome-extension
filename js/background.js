@@ -26,7 +26,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 		case "createContextNested":
 			var main = chrome.contextMenus.create({
 				id: "gitzip-nested",
-				title: "GitZip",
+				title: "GitZip Download",
 				contexts: ["all"]
 			});
 			chrome.contextMenus.create({
@@ -63,13 +63,13 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 			var updateObj = { enabled: request.enabled !== false };
 			switch (id) {
 				case "selected":
-					updateObj.title = updateObj.enabled ? ((request.urlType == "blob" ? "File - " : "Folder - ") + request.urlName) : "(selected)";
+					updateObj.title = updateObj.enabled ? ("Selected " + (request.urlType == "blob" ? "File - " : "Folder - ") + request.urlName) : "(selected)";
 					break;
 				case "current":
 					if (request.root === true) 
 						updateObj.title = "Whole Repository";
 					else 
-						updateObj.title = updateObj.enabled ? ((request.urlType == "blob" ? "File - " : "Folder - ") + request.urlName) : "(current)";
+						updateObj.title = updateObj.enabled ? ("Current " + (request.urlType == "blob" ? "File - " : "Folder - ") + request.urlName) : "(current)";
 					break;
 			}
 			chrome.contextMenus.update("gitzip-nested-" + id, updateObj);
@@ -87,6 +87,9 @@ chrome.contextMenus.onClicked.addListener(function(info, tab){
 });
 
 chrome.tabs.onActivated.addListener(function(activeInfo) {
+	// disable first
+	chrome.action.disable(activeInfo.tabId);
+
 	// handle other tabs active
     chrome.contextMenus.removeAll();
 
