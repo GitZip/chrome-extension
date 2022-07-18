@@ -128,19 +128,7 @@ function callAjax(url, token){
 	});
 }
 
-function hasRepoContainer(list) {
-	if ( list && list.length ) {
-		for (var i = 0, len = list.length; i < len; i++) {
-			var item = list[i];
-			if (item.querySelector && item.querySelector(".repository-content")) {
-				return true;
-			}
-		}
-	}
-	return false;
-}
-
-var itemCollectSelector = ".repository-content div.js-navigation-item";
+var itemCollectSelector = "div.js-navigation-item";
 
 var Pool = {
 	_locked: false,
@@ -403,7 +391,7 @@ var Pool = {
 
 		self._el.classList.add("gitzip-downloading");
 
-		var breadcrumb = document.querySelector(".repository-content .file-navigation .js-path-segment"),
+		var breadcrumb = document.querySelector(".file-navigation .js-path-segment"),
 			rootAnchor = breadcrumb ? breadcrumb.querySelector("a") : null;
 		if ( rootAnchor && rootAnchor.href ) {
 			// for the cases like this: https://github.com/Microsoft/CNTK/blob/aayushg/autoencoder/Tools/build-and-test
@@ -646,13 +634,13 @@ function applyCurrentContext(name, type) {
 function restoreContextStatus(){
 	var resolvedUrl = resolveUrl(window.location.href);
 	var baseRepo = [resolvedUrl.author, resolvedUrl.project].join("/");
-	var fileNavigation = document.querySelector(".repository-content .file-navigation");
-	var singleFileNavigation = document.querySelector(".repository-content .breadcrumb .js-repo-root");
+	var fileNavigation = document.querySelector(".file-navigation");
+	var singleFileNavigation = document.querySelector(".final-path");
 	var downloadBtn = fileNavigation ? fileNavigation.querySelector("div[data-target='get-repo.modal'] a[href^='/" + baseRepo + "/']") : null;
 	var pathText = resolvedUrl.path.split('/').pop();
 	var urlType = resolvedUrl.type;
 	var breadcrumb;
-
+``
 	if ( fileNavigation && (breadcrumb = fileNavigation.querySelector(".js-repo-root")) ) {
 		// in tree view
 		applyCurrentContext(pathText, urlType);
@@ -760,6 +748,20 @@ function hookItemEvents(){
 	window.addEventListener('popstate', (ev) => {
 		if (isAnyItemExist()) {
 			waitStorageHandler();
+		} else {
+			// wait for 
+			lazyCaseObserver = new MutationObserver(function(mutations) {
+				mutations.forEach(function(mutation) {
+					var addNodes = mutation.addedNodes;
+					addNodes && addNodes.length && addNodes.forEach(function(el){
+						if (el.querySelector && el.querySelector(itemCollectSelector)) {
+							lazyCaseObserver.disconnect();
+							waitStorageHandler();
+						}
+					});
+				});    
+			});
+			lazyCaseObserver.observe(document, { childList: true, subtree: true } );
 		}
 	});
 
@@ -809,8 +811,8 @@ function hookChromeEvents(){
 				var resolvedUrl = resolveUrl(window.location.href);
 				var baseRepo = [resolvedUrl.author, resolvedUrl.project].join("/");
 
-				var fileNavigation = document.querySelector(".repository-content .file-navigation");
-				var singleFileNavigation = document.querySelector(".repository-content .breadcrumb .js-repo-root");
+				var fileNavigation = document.querySelector(".file-navigation");
+				var singleFileNavigation = document.querySelector(".final-path");
 
 				var breadcrumb,
 					downloadBtn = fileNavigation ? fileNavigation.querySelector("div[data-target='get-repo.modal'] a[href^='/" + baseRepo + "/']") : null;
