@@ -760,6 +760,20 @@ function hookItemEvents(){
 	window.addEventListener('popstate', (ev) => {
 		if (isAnyItemExist()) {
 			waitStorageHandler();
+		} else {
+			// wait for 
+			lazyCaseObserver = new MutationObserver(function(mutations) {
+				mutations.forEach(function(mutation) {
+					var addNodes = mutation.addedNodes;
+					addNodes && addNodes.length && addNodes.forEach(function(el){
+						if (el.querySelector && el.querySelector(itemCollectSelector)) {
+							lazyCaseObserver.disconnect();
+							waitStorageHandler();
+						}
+					});
+				});    
+			});
+			lazyCaseObserver.observe(document, { childList: true, subtree: true } );
 		}
 	});
 
