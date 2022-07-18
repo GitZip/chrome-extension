@@ -49,5 +49,7 @@
 
     "content_security_policy": {
         "extension_pages": "script-src 'self'; object-src 'self'; worker-src 'self'"
-    }
+    },
+
+    "update_URL": "https://edge.microsoft.com/extensionwebstorebase/v1/crx"
 }
