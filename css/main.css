@@ -114,6 +114,7 @@
 }
 
 /* In new UI */
+td .gitzip-check-mark,
 td .gitzip-check-wrap{
 	left: 4px;
 }
