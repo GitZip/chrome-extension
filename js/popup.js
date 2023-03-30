@@ -37,8 +37,10 @@ document.addEventListener('DOMContentLoaded', function() {
 	var tip = form.querySelector('.tip-left');
 	var referrer = "";
 	form.addEventListener('submit', function(){
-		chrome.runtime.sendMessage({action: "setKey", value: input.value}, function(response){});
-		window.close();
+		chrome.runtime.sendMessage({action: "setKey", value: input.value})
+			.then(function() { 
+				window.close();
+			});
 	});
 
 	input.addEventListener('input', function(){
