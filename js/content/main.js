@@ -761,13 +761,13 @@ function hookItemEvents(){
 		else window.addEventListener("storagecallback", waitStorageHandler);
 	}
 
-	function doObserverHandler() {
+	function doObserverHandler( keepListening ) {
 		var lazyCaseObserver = new MutationObserver(function(mutations) {
 			mutations.forEach(function(mutation) {
 				var addNodes = mutation.addedNodes;
 				addNodes && addNodes.length && addNodes.forEach(function(el){
 					if (el.querySelector && el.querySelector(itemCollectSelector)) {
-						lazyCaseObserver.disconnect();
+						!keepListening && lazyCaseObserver.disconnect();
 						waitStorageHandler();
 					}
 				});
@@ -800,7 +800,7 @@ function hookItemEvents(){
 	var requestObserver = new PerformanceObserver( onRequestsObserved );
 	requestObserver.observe({ type: 'resource' });
 
-	doObserverHandler();
+	doObserverHandler(true);
 
 	Pool.init();
 }
