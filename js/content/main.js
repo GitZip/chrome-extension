@@ -503,15 +503,18 @@ chrome.storage.onChanged.addListener(function(changes, area){
 			var items = document.querySelectorAll(itemCollectSelector);
 			var itemLen = items.length;
 			if(itemLen){
+				// means in new UI
+				var isNewUI = items[0].tagName.toLowerCase() === "td";
 				for(var i = 0; i < itemLen; i++){
 					var item = items[i];
 					// reset
 					item._hasBind = false;
 
+					var eventBindItem = isNewUI ? item.closest("tr") : item;
 					// remove events
-					item.removeEventListener("dblclick", onItemDblClick);
-					item.removeEventListener("mouseenter", onItemEnter);
-					item.removeEventListener("mouseleave", onItemLeave);
+					eventBindItem.removeEventListener("dblclick", onItemDblClick);
+					eventBindItem.removeEventListener("mouseenter", onItemEnter);
+					eventBindItem.removeEventListener("mouseleave", onItemLeave);
 
 					// remove custom markers
 					var toRemoveMark = item.querySelector("p.gitzip-check-mark");
@@ -680,8 +683,9 @@ function appendToIcons(isRebind){
 	var items = document.querySelectorAll(itemCollectSelector);
 	var itemLen = items.length;
 	if(itemLen){
-		if (items[0].tagName.toLowerCase() === "td") {
-			// means in new UI
+		// means in new UI
+		var isNewUI = items[0].tagName.toLowerCase() === "td";
+		if (isNewUI) {
 			Array.from(document.querySelectorAll(cssChangePaddingSelector))
 				.forEach(function(td){
 					td.style["padding-left"] = "24px";
@@ -711,18 +715,20 @@ function appendToIcons(isRebind){
 					});	
 				}
 
+				var eventBindItem = isNewUI ? item.closest("tr") : item;
+
 				if (isBoth || isOnlyDoubleClick) {
-					item.addEventListener("dblclick", onItemDblClick);	
+					eventBindItem.addEventListener("dblclick", onItemDblClick);	
 				}
 				
 				if (isRebind !== true) {
-					item.addEventListener("mouseenter", generateEnterItemHandler(title, type, link.href) );
-					item.addEventListener("mouseleave", leaveItemHandler);
+					eventBindItem.addEventListener("mouseenter", generateEnterItemHandler(title, type, link.href) );
+					eventBindItem.addEventListener("mouseleave", leaveItemHandler);
 				}
 
 				if (isBoth || isOnlySingleCheck) {
-					item.addEventListener("mouseenter", onItemEnter);
-					item.addEventListener("mouseleave", onItemLeave);
+					eventBindItem.addEventListener("mouseenter", onItemEnter);
+					eventBindItem.addEventListener("mouseleave", onItemLeave);
 				}
 				
 				item._hasBind = true;
