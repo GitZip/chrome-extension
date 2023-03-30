@@ -128,7 +128,15 @@ function callAjax(url, token){
 	});
 }
 
-var itemCollectSelector = "div.js-navigation-item";
+
+var reposSplitContentSelector = "[data-selector='repos-split-pane-content']";
+var cssChangePaddingSelector = reposSplitContentSelector + " table tbody td";
+var itemCollectSelector = reposSplitContentSelector + " table tbody tr.react-directory-row > td:first-child";
+
+// var itemCollectSelector = "div.js-navigation-item";
+
+var closestRowFromItemSelector = ".js-navigation-item, tr";
+
 
 var Pool = {
 	_locked: false,
@@ -561,13 +569,13 @@ function checkHaveAnyCheck(){
 
 function onItemDblClick(e){
 	if (isBoth) {
-		var markTarget = e.target.closest(".js-navigation-item").querySelector('div.gitzip-check-wrap');
+		var markTarget = e.target.closest(closestRowFromItemSelector).querySelector('div.gitzip-check-wrap');
 		if(markTarget) {
 			var cb = markTarget.querySelector('input');
 			cb.click();
 		}	
 	} else if (isOnlyDoubleClick) {
-		var markTarget = e.target.closest(".js-navigation-item").querySelector('p.gitzip-check-mark');
+		var markTarget = e.target.closest(closestRowFromItemSelector).querySelector('p.gitzip-check-mark');
 		if(markTarget) markTarget.classList.toggle("gitzip-show");
 		checkHaveAnyCheck()? Pool.show() : Pool.hide();
 		applyItemsContext();
@@ -575,14 +583,14 @@ function onItemDblClick(e){
 }
 
 function onItemEnter(e) {
-	var markTarget = e.target.closest(".js-navigation-item").querySelector('div.gitzip-check-wrap');
+	var markTarget = e.target.closest(closestRowFromItemSelector).querySelector('div.gitzip-check-wrap');
 	if (markTarget && !markTarget.style.display) {
 		markTarget.style.display = "flex";
 	}
 }
 
 function onItemLeave(e) {
-	var markTarget = e.target.closest(".js-navigation-item").querySelector('div.gitzip-check-wrap');
+	var markTarget = e.target.closest(closestRowFromItemSelector).querySelector('div.gitzip-check-wrap');
 	if (markTarget && !markTarget.querySelector('input:checked')) {
 		markTarget.style.display = "";
 	}
@@ -640,7 +648,7 @@ function restoreContextStatus(){
 	var pathText = resolvedUrl.path.split('/').pop();
 	var urlType = resolvedUrl.type;
 	var breadcrumb;
-``
+
 	if ( fileNavigation && (breadcrumb = fileNavigation.querySelector(".js-repo-root")) ) {
 		// in tree view
 		applyCurrentContext(pathText, urlType);
@@ -672,11 +680,19 @@ function appendToIcons(isRebind){
 	var items = document.querySelectorAll(itemCollectSelector);
 	var itemLen = items.length;
 	if(itemLen){
+		if (items[0].tagName.toLowerCase() === "td") {
+			// means in new UI
+			Array.from(document.querySelectorAll(cssChangePaddingSelector))
+				.forEach(function(td){
+					td.style["padding-left"] = "24px";
+					td.style["position"] = "relative";
+				});
+		}
 		for(var i = 0; i < itemLen; i++){
 			var item = items[i],
 				link = item.querySelector("a[href]"),
-				blob = item.querySelector(".octicon-file-text, .octicon-file"),
-				tree = item.querySelector(".octicon-file-directory, .octicon-file-directory-fill");
+				blob = item.querySelector(".octicon-file-text, .octicon-file") || (link && resolveUrl(link.href).type === "blob"),
+				tree = item.querySelector(".octicon-file-directory, .octicon-file-directory-fill") || (link && resolveUrl(link.href).type === "tree");
 			
 			if(!item._hasBind && link && (tree || blob)){
 				var title = link.textContent,
@@ -745,23 +761,27 @@ function hookItemEvents(){
 		else window.addEventListener("storagecallback", waitStorageHandler);
 	}
 
+	function doObserverHandler() {
+		var lazyCaseObserver = new MutationObserver(function(mutations) {
+			mutations.forEach(function(mutation) {
+				var addNodes = mutation.addedNodes;
+				addNodes && addNodes.length && addNodes.forEach(function(el){
+					if (el.querySelector && el.querySelector(itemCollectSelector)) {
+						lazyCaseObserver.disconnect();
+						waitStorageHandler();
+					}
+				});
+			});    
+		});
+		lazyCaseObserver.observe(document, { childList: true, subtree: true } );
+	}
+
 	window.addEventListener('popstate', (ev) => {
 		if (isAnyItemExist()) {
 			waitStorageHandler();
 		} else {
 			// wait for 
-			lazyCaseObserver = new MutationObserver(function(mutations) {
-				mutations.forEach(function(mutation) {
-					var addNodes = mutation.addedNodes;
-					addNodes && addNodes.length && addNodes.forEach(function(el){
-						if (el.querySelector && el.querySelector(itemCollectSelector)) {
-							lazyCaseObserver.disconnect();
-							waitStorageHandler();
-						}
-					});
-				});    
-			});
-			lazyCaseObserver.observe(document, { childList: true, subtree: true } );
+			doObserverHandler();
 		}
 	});
 
@@ -779,6 +799,8 @@ function hookItemEvents(){
 
 	var requestObserver = new PerformanceObserver( onRequestsObserved );
 	requestObserver.observe({ type: 'resource' });
+
+	doObserverHandler();
 
 	Pool.init();
 }

@@ -113,6 +113,11 @@
     align-items: center;
 }
 
+/* In new UI */
+td .gitzip-check-wrap{
+	left: 4px;
+}
+
 .gitzip-collect-wrap{
 	position: fixed;
 	right: 28px;
