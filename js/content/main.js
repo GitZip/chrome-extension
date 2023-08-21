@@ -130,8 +130,8 @@ function callAjax(url, token){
 
 
 var reposSplitContentSelector = "[data-selector='repos-split-pane-content']";
-var cssChangePaddingSelector = reposSplitContentSelector + " table tbody td";
-var itemCollectSelector = "div.js-navigation-item, " + reposSplitContentSelector + " table tbody tr.react-directory-row > td:first-child";
+var upfolderItemSelector = reposSplitContentSelector + " table tbody > tr > td";
+var itemCollectSelector = "div.js-navigation-item, " + reposSplitContentSelector + " table tbody tr.react-directory-row > td[class$='cell-large-screen']";
 
 var closestRowFromItemSelector = ".js-navigation-item, tr";
 
@@ -689,11 +689,11 @@ function appendToIcons(isRebind){
 		// means in new UI
 		var isNewUI = items[0].tagName.toLowerCase() === "td";
 		if (isNewUI) {
-			Array.from(document.querySelectorAll(cssChangePaddingSelector))
-				.forEach(function(td){
-					td.style["padding-left"] = "24px";
-					td.style["position"] = "relative";
-				});
+			var td = document.querySelector(upfolderItemSelector);
+			if (td) {
+				td.style["padding-left"] = "24px";
+				td.style["position"] = "relative";
+			}
 		}
 		for(var i = 0; i < itemLen; i++){
 			var item = items[i],
@@ -710,7 +710,17 @@ function appendToIcons(isRebind){
 					onItemLeave({ target: item });
 				}
 				
-				var markTarget = createMark(item, item.offsetHeight, title, type, link.href);
+				var markParent = link.closest("td");
+
+				if ( markParent ) {
+					// change the style
+					markParent.style["padding-left"] = "24px";
+					markParent.style["position"] = "relative";
+				} else {
+					markParent = item;
+				}
+
+				var markTarget = createMark(markParent, item.offsetHeight, title, type, link.href);
 				if (isBoth || isOnlySingleCheck) {
 					markTarget.querySelector("input").addEventListener('change', function(){
 						checkHaveAnyCheck()? Pool.show() : Pool.hide();
