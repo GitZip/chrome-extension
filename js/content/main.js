@@ -129,9 +129,9 @@ function callAjax(url, token){
 }
 
 
-var reposSplitContentSelector = "[data-selector='repos-split-pane-content']";
-var upfolderItemSelector = reposSplitContentSelector + " table tbody > tr > td";
-var itemCollectSelector = "div.js-navigation-item, " + reposSplitContentSelector + " table tbody tr.react-directory-row > td[class$='cell-large-screen']";
+// var reposSplitContentSelector = "[data-selector='repos-split-pane-content']";
+var upfolderItemSelector = "table tbody tr.react-directory-row > td[class$='cell-large-screen']";
+var itemCollectSelector = "div.js-navigation-item, " + upfolderItemSelector;
 
 var closestRowFromItemSelector = ".js-navigation-item, tr";
 
@@ -642,7 +642,7 @@ function applyCurrentContext(name, type) {
 		action: "updateContextNested",
 		urlName: name,
 		urlType: type,
-		root: !name && !type,
+		enabled: !!(name || type),
 		target: "current"
 	});
 }
@@ -650,12 +650,11 @@ function applyCurrentContext(name, type) {
 function restoreContextStatus(){
 	var resolvedUrl = resolveUrl(window.location.href);
 	var baseRepo = [resolvedUrl.author, resolvedUrl.project].join("/");
-	var fileNavigation = document.querySelector(".file-navigation");
-	var downloadBtn = fileNavigation ? fileNavigation.querySelector("div[data-target='get-repo.modal'] a[href^='/" + baseRepo + "/']") : null;
+	var isRoot = !resolvedUrl.path;
 	var pathText = resolvedUrl.path.split('/').pop();
 	var urlType = resolvedUrl.type;
 	
-	if ( downloadBtn ) {
+	if ( isRoot ) {
 		// in root
 		applyCurrentContext();
 	} else if ( urlType === "tree" ) {
@@ -850,15 +849,9 @@ function hookChromeEvents(){
 				return true;
 			case "gitzip-nested-current-clicked":
 				var resolvedUrl = resolveUrl(window.location.href);
-				var baseRepo = [resolvedUrl.author, resolvedUrl.project].join("/");
-				var fileNavigation = document.querySelector(".file-navigation");
-				var downloadBtn = fileNavigation ? fileNavigation.querySelector("div[data-target='get-repo.modal'] a[href^='/" + baseRepo + "/']") : null;
 				var urlType = resolvedUrl.type;
 
-				if ( downloadBtn ) {
-					// in root
-					downloadBtn.click();
-				} else if ( urlType === "tree" ) {
+				if ( urlType === "tree" ) {
 					// in tree view
 					Pool.downloadAll();
 				} else if ( urlType === "blob" ) {
