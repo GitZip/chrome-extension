@@ -28,21 +28,43 @@ function resolveUrl(repoUrl){
     if(typeof repoUrl != 'string') return false;
     var matches = repoUrl.match(repoExp);
     if(matches && matches.length > 0){
-    	var rootUrl = (matches[5])?
-            "https://github.com/" + matches[1] + "/" + matches[2] + "/tree/" + matches[5] :
-            "https://github.com/" + matches[1] + "/" + matches[2];
+		const author = matches[1];
+		const project = matches[2];
+		const type = matches[4];
+		
+		let branch = matches[5];
+		let path = matches[7];
 
-    	var strType = matches[4];
-    	if ( !strType && (repoUrl.length - rootUrl.length > 1) ) { // means no type and url different with root
+		// default 
+    	let rootUrl = branch ? 
+			`https://github.com/${author}/${project}/tree/${branch}` : 
+			`https://github.com/${author}/${project}`;
+
+		// if the url is current url, make sure the branch name
+		if (repoUrl === window.location.href) {
+			const breadcrumb = document.querySelector("[id^=repos-header-breadcrumb]");
+			if (breadcrumb) {
+				const rootRelatePath = breadcrumb.querySelector('[href]').getAttribute('href');
+				rootUrl = `https://github.com/${rootRelatePath}`;
+				branch = rootRelatePath.split(`${author}/${project}/tree/`)[1];
+				path = repoUrl.split(`${author}/${project}/${type}/${branch}/`)[1];
+			} else if (type === 'tree') {	// in root view
+				rootUrl = repoUrl;	
+				path = '';
+				branch = repoUrl.split(`${author}/${project}/tree/`)[1];
+			}
+		}
+
+    	if ( !type && (repoUrl.length - rootUrl.length > 1) ) { // means no type and url different with root
     		return false;
     	}
 
         return {
-            author: matches[1],
-            project: matches[2],
-            branch: matches[5],
-            type: matches[4],
-            path: matches[7] || '',
+            author: author,
+            project: project,
+            branch: branch,
+            type: type,
+            path: path || '',
             inputUrl: repoUrl,
             rootUrl: rootUrl
         };
@@ -132,7 +154,7 @@ function callAjax(url, token){
 // var reposSplitContentSelector = "[data-selector='repos-split-pane-content']";
 var upfolderItemSelector = "table tbody tr.react-directory-row > td[class$='cell-large-screen']";
 var itemCollectSelector = "div.js-navigation-item, " + upfolderItemSelector;
-
+var breadcrumbSelector = "div[class^=Breadcrumb-module__filename]";
 var closestRowFromItemSelector = ".js-navigation-item, tr";
 
 function getSelectorConcat(baseSelector, appendSelector) {
@@ -794,6 +816,20 @@ function hookItemEvents(){
 		lazyCaseObserver.observe(document, { childList: true, subtree: true } );
 	}
 
+	function doFileViewObserverHandler() {
+		var lazyCaseObserver = new MutationObserver(function(mutations) {
+			mutations.forEach(function(mutation) {
+				var addNodes = mutation.addedNodes;
+				addNodes && addNodes.length && addNodes.forEach(function(el){
+					if (el.querySelector && el.querySelector(breadcrumbSelector)) {
+						restoreContextStatus();
+					}
+				});
+			});    
+		});
+		lazyCaseObserver.observe(document, { childList: true, subtree: true } );
+	}
+
 	window.addEventListener('popstate', (ev) => {
 		if (isAnyItemExist()) {
 			waitStorageHandler();
@@ -819,6 +855,7 @@ function hookItemEvents(){
 	requestObserver.observe({ type: 'resource' });
 
 	doObserverHandler(true);
+	doFileViewObserverHandler();
 
 	Pool.init();
 }
